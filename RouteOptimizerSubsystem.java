@@ -26,19 +26,38 @@ interface IDeliveryStop {
     double getLatitude();
     double getLongitude();
     String getAddress();
-    int getPriorityLevel();       // 1 (highest) to 5 (lowest)
+    int getPriorityLevel();           // 1 (highest) to 5 (lowest) — map Standard=3, Express=2, Next-Day=1
+    String getPriorityLabel();        // Human-readable: "Standard" | "Express" | "Next-Day"
     double getPackageWeightKg();
 }
 
 /**
  * CONTRACT FOR DB TEAM.
  * The full metadata object passed into the subsystem facade.
- * The DB team populates this and hands it to SubsystemFacade.optimizeDeliveryCycle().
+ * The DB team populates this and hands it to RouteOptimizerFacade.optimizeDeliveryCycle().
+ *
+ * FIELD ALIGNMENT WITH CENTER DIV DOCUMENT:
+ *   getShipmentId()        → shipmentId  (doc row 1)
+ *   getOptimizationMode()  → drives constraint selection (doc row 9)
+ *   isMinCost()            → constraints.MinCost flag (doc row 9)
+ *   isMinTime()            → constraints.MinTime flag (doc row 9)
+ *   isAvoidTolls()         → constraints.AvoidTolls flag (doc row 9)
+ *   isDropShip()           → isDropShip flag (doc row 5)
  */
 interface IRouteData {
-    String getDeliveryId();
+    String getShipmentId();           // renamed from getDeliveryId() — matches doc "shipmentId"
+    String getDeliveryId();           // kept as alias for backward compatibility
     String getVehicleId();
     String getOptimizationMode();     // "DISTANCE" | "COST" | "PRIORITY"
+
+    // --- Constraint flags (CENTER DIV doc row 9) ---
+    boolean isMinCost();              // true = minimise monetary cost
+    boolean isMinTime();              // true = minimise travel time
+    boolean isAvoidTolls();           // true = route must skip toll roads
+
+    // --- Drop-ship flag (CENTER DIV doc row 5) ---
+    boolean isDropShip();             // true = bypass warehouse, dispatch direct from supplier
+
     List<IDeliveryStop> getStops();
     double getMaxVehicleCapacityKg();
     String getDepotAddress();         // Starting/ending warehouse location
@@ -288,13 +307,19 @@ class OsrmAdapter implements IMapRouterPort {
 class OptimizationResult {
     public final List<IDeliveryStop> orderedStops;
     public final double totalDistanceKm;
-    public final double totalCostUSD;
+    public final double calculatedCost;   // renamed from totalCostUSD — matches doc "calculatedCost"
+    public final String routeId;          // unique ID for this computed route (doc row 8)
 
     public OptimizationResult(List<IDeliveryStop> orderedStops,
-                               double totalDistanceKm, double totalCostUSD) {
-        this.orderedStops     = orderedStops;
-        this.totalDistanceKm  = totalDistanceKm;
-        this.totalCostUSD     = totalCostUSD;
+                               double totalDistanceKm, double calculatedCost) {
+        this.orderedStops    = orderedStops;
+        this.totalDistanceKm = totalDistanceKm;
+        this.calculatedCost  = calculatedCost;
+        // Generate a deterministic routeId from stop sequence
+        this.routeId = "ROUTE-" + Math.abs(orderedStops.stream()
+                .map(IDeliveryStop::getStopId)
+                .reduce("", String::concat)
+                .hashCode());
     }
 }
 
@@ -350,9 +375,9 @@ class DistanceOptimizationStrategy implements IRouteStrategy {
             }
         }
 
-        double totalDist = segments.stream().mapToDouble(s -> s.distanceKm).sum();
-        double totalCost = segments.stream().mapToDouble(s -> s.estimatedFuelCostUSD).sum();
-        return new OptimizationResult(ordered, totalDist, totalCost);
+        double totalDist       = segments.stream().mapToDouble(s -> s.distanceKm).sum();
+        double calculatedCost  = segments.stream().mapToDouble(s -> s.estimatedFuelCostUSD).sum();
+        return new OptimizationResult(ordered, totalDist, calculatedCost);
     }
 
     private double haversine(IDeliveryStop a, IDeliveryStop b) {
@@ -387,15 +412,15 @@ class CostOptimizationStrategy implements IRouteStrategy {
         List<IDeliveryStop> ordered = new ArrayList<>(stops);
         ordered.sort(Comparator.comparingInt(IDeliveryStop::getPriorityLevel));
 
-        double totalDist = segments.stream().mapToDouble(s -> s.distanceKm).sum();
-        double fuelCost  = segments.stream().mapToDouble(s -> s.estimatedFuelCostUSD).sum();
-        double tollCost  = totalDist * TOLL_RATE_PER_KM;
+        double totalDist      = segments.stream().mapToDouble(s -> s.distanceKm).sum();
+        double fuelCost       = segments.stream().mapToDouble(s -> s.estimatedFuelCostUSD).sum();
+        double tollCost       = totalDist * TOLL_RATE_PER_KM;
         double priorityPenalty = ordered.stream()
                 .mapToDouble(s -> (s.getPriorityLevel() - 1) * PRIORITY_WEIGHT)
                 .sum();
 
-        double totalCost = fuelCost + tollCost - priorityPenalty;  // penalty reduces cost when served early
-        return new OptimizationResult(ordered, totalDist, Math.max(0, totalCost));
+        double calculatedCost = fuelCost + tollCost - priorityPenalty;
+        return new OptimizationResult(ordered, totalDist, Math.max(0, calculatedCost));
     }
 
     @Override
@@ -415,9 +440,9 @@ class PriorityOptimizationStrategy implements IRouteStrategy {
         List<IDeliveryStop> ordered = new ArrayList<>(stops);
         ordered.sort(Comparator.comparingInt(IDeliveryStop::getPriorityLevel));
 
-        double totalDist = segments.stream().mapToDouble(s -> s.distanceKm).sum();
-        double totalCost = segments.stream().mapToDouble(s -> s.estimatedFuelCostUSD).sum();
-        return new OptimizationResult(ordered, totalDist, totalCost);
+        double totalDist      = segments.stream().mapToDouble(s -> s.distanceKm).sum();
+        double calculatedCost = segments.stream().mapToDouble(s -> s.estimatedFuelCostUSD).sum();
+        return new OptimizationResult(ordered, totalDist, calculatedCost);
     }
 
     @Override
@@ -472,8 +497,9 @@ class DeliveryRouteStrategyFactory extends RouteStrategyFactory {
  * PUBLIC API OF THIS SUBSYSTEM.
  *
  * Other teams integrate by:
- *   1. DB Team   → implements IRouteData and IDeliveryStop, passes to optimizeDeliveryCycle()
- *   2. Fleet/WH  → implements IRouteEventListener, calls subscribeToRouteEvents()
+ *   1. DB Team         → implements IRouteData and IDeliveryStop, passes to optimizeDeliveryCycle()
+ *   2. Fleet/WH        → implements IRouteEventListener, calls subscribeToRouteEvents()
+ *   3. Real-Time Mon.  → calls onExternalAlert() when an anomaly is detected on a route
  *
  * That's it. No other classes need to be touched.
  */
@@ -482,6 +508,9 @@ public class RouteOptimizerFacade {
     private final RouteStrategyFactory strategyFactory;
     private final IMapRouterPort       mapRouter;
     private final RouteEventBus        eventBus;
+
+    // Tracks active shipmentId → routeData so alerts can trigger re-optimization
+    private final Map<String, IRouteData> activeRoutes = new HashMap<>();
 
     /**
      * Default constructor uses Google Maps adapter.
@@ -509,14 +538,28 @@ public class RouteOptimizerFacade {
     /**
      * THE main method other teams call.
      *
+     * Handles drop-ship flag: if isDropShip() is true, warehouse routing is
+     * skipped and a direct supplier-to-destination route is computed instead.
+     *
      * @param routeData  Populated by the DB team using their implementation of IRouteData
-     * @return           OptimizationResult with ordered stops, distance, and cost
+     * @return           OptimizationResult with ordered stops, routeId, distance, and calculatedCost
      */
     public OptimizationResult optimizeDeliveryCycle(IRouteData routeData) {
         System.out.println("\n====== RouteOptimizerFacade: optimizeDeliveryCycle ======");
-        System.out.println("Delivery: " + routeData.getDeliveryId()
-                + " | Vehicle: " + routeData.getVehicleId()
-                + " | Mode: "    + routeData.getOptimizationMode());
+        System.out.println("Shipment : " + routeData.getShipmentId()
+                + " | Vehicle : " + routeData.getVehicleId()
+                + " | Mode    : " + routeData.getOptimizationMode());
+        System.out.println("Constraints → MinCost=" + routeData.isMinCost()
+                + "  MinTime=" + routeData.isMinTime()
+                + "  AvoidTolls=" + routeData.isAvoidTolls()
+                + "  DropShip=" + routeData.isDropShip());
+
+        // Step 0: Drop-ship check — bypass warehouse if flag is set (doc row 5 / fn 13)
+        if (routeData.isDropShip()) {
+            System.out.println("[Facade] DROP-SHIP detected — bypassing warehouse routing. "
+                    + "Dispatching directly from supplier.");
+            return handleDropShipRoute(routeData);
+        }
 
         // Step 1: Select strategy via Factory Method
         IRouteStrategy strategy = strategyFactory.getStrategy(routeData);
@@ -527,24 +570,76 @@ public class RouteOptimizerFacade {
         // Step 3: Run the optimization algorithm via Strategy
         OptimizationResult result = strategy.optimize(routeData.getStops(), segments);
 
-        // Step 4: Publish event to all observers (Fleet, Warehouse, etc.)
+        // Step 4: Register this shipment as active (so alerts can re-trigger it)
+        activeRoutes.put(routeData.getShipmentId(), routeData);
+
+        // Step 5: Publish event to all observers (Fleet, Warehouse, Real-Time Monitoring)
         List<String> stopIds = new ArrayList<>();
         for (IDeliveryStop stop : result.orderedStops) stopIds.add(stop.getStopId());
 
         eventBus.publish(new RouteRecalculatedEvent(
-                routeData.getDeliveryId(),
+                routeData.getShipmentId(),
                 routeData.getVehicleId(),
                 stopIds,
                 result.totalDistanceKm,
-                result.totalCostUSD));
+                result.calculatedCost));
 
-        System.out.println("[Facade] Optimization complete. Strategy: "
-                + strategy.getStrategyName()
+        System.out.println("[Facade] Optimization complete."
+                + " RouteId: "   + result.routeId
+                + " | Strategy: " + strategy.getStrategyName()
                 + " | Distance: " + String.format("%.2f", result.totalDistanceKm) + "km"
-                + " | Cost: $" + String.format("%.2f", result.totalCostUSD));
+                + " | Cost: $"    + String.format("%.2f", result.calculatedCost));
         System.out.println("=========================================================\n");
 
         return result;
+    }
+
+    /**
+     * Handles drop-ship routing — computes a direct supplier → destination path,
+     * skipping all warehouse stops. Implements confirmDropShipOrder() from doc fn 13.
+     */
+    private OptimizationResult handleDropShipRoute(IRouteData routeData) {
+        // For drop-ship, we still optimise the supplier→stop segments — just no depot
+        List<RouteSegment> segments = mapRouter.calculateSegments(routeData.getStops());
+        IRouteStrategy strategy     = new DistanceOptimizationStrategy();
+        OptimizationResult result   = strategy.optimize(routeData.getStops(), segments);
+
+        List<String> stopIds = new ArrayList<>();
+        for (IDeliveryStop stop : result.orderedStops) stopIds.add(stop.getStopId());
+
+        eventBus.publish(new RouteRecalculatedEvent(
+                routeData.getShipmentId(), routeData.getVehicleId(),
+                stopIds, result.totalDistanceKm, result.calculatedCost));
+
+        System.out.println("[Facade] Drop-ship route published. RouteId: " + result.routeId);
+        System.out.println("=========================================================\n");
+        return result;
+    }
+
+    // ------------------------------------------------------------------
+    // INBOUND ALERT HANDLER — FOR REAL-TIME MONITORING TEAM (Ramen Noodles)
+    // Called by Team "Ramen Noodles" when an anomaly is detected (doc row 15 / fn 11)
+    // ------------------------------------------------------------------
+
+    /**
+     * Receives an external alert from the Real-Time Monitoring subsystem.
+     * If the affected shipment is currently active, its route is automatically
+     * re-optimised and all observers are notified.
+     *
+     * @param alertId          Unique alert identifier (doc field "alertId")
+     * @param message          Human-readable description, e.g. "Accident on NH-48" (doc field "message")
+     * @param affectedShipmentId  The shipmentId whose route is impacted
+     */
+    public void onExternalAlert(String alertId, String message, String affectedShipmentId) {
+        System.out.println("\n[Facade] ⚠ ALERT RECEIVED — id=" + alertId + " | " + message);
+        IRouteData affected = activeRoutes.get(affectedShipmentId);
+        if (affected == null) {
+            System.out.println("[Facade] Shipment " + affectedShipmentId
+                    + " not currently active. Alert logged, no re-optimisation needed.");
+            return;
+        }
+        System.out.println("[Facade] Re-optimising route for shipment: " + affectedShipmentId);
+        optimizeDeliveryCycle(affected);   // triggers full re-optimisation + observer notifications
     }
 
     // ------------------------------------------------------------------
@@ -576,11 +671,14 @@ public class RouteOptimizerFacade {
 class DbDeliveryStop implements IDeliveryStop {
     private final String stopId; private final double lat; private final double lng;
     private final String address; private final int priority; private final double weightKg;
+    private final String priorityLabel;
 
     public DbDeliveryStop(String stopId, double lat, double lng,
                            String address, int priority, double weightKg) {
         this.stopId = stopId; this.lat = lat; this.lng = lng;
         this.address = address; this.priority = priority; this.weightKg = weightKg;
+        // Auto-derive label from int level: 1=Next-Day, 2=Express, else=Standard
+        this.priorityLabel = (priority == 1) ? "Next-Day" : (priority == 2) ? "Express" : "Standard";
     }
 
     @Override public String getStopId()             { return stopId; }
@@ -588,26 +686,37 @@ class DbDeliveryStop implements IDeliveryStop {
     @Override public double getLongitude()          { return lng; }
     @Override public String getAddress()            { return address; }
     @Override public int getPriorityLevel()         { return priority; }
+    @Override public String getPriorityLabel()      { return priorityLabel; }
     @Override public double getPackageWeightKg()    { return weightKg; }
 }
 
 // --- DB TEAM'S concrete implementation of IRouteData ---
 class DbRouteData implements IRouteData {
-    private String deliveryId, vehicleId, mode, depotAddress;
+    private String shipmentId, vehicleId, mode, depotAddress;
     private double maxCapacity;
     private List<IDeliveryStop> stops;
+    private boolean minCost, minTime, avoidTolls, dropShip;
 
-    public DbRouteData(String deliveryId, String vehicleId, String mode,
+    public DbRouteData(String shipmentId, String vehicleId, String mode,
                         String depotAddress, double maxCapacity,
-                        List<IDeliveryStop> stops) {
-        this.deliveryId = deliveryId; this.vehicleId = vehicleId;
+                        List<IDeliveryStop> stops,
+                        boolean minCost, boolean minTime,
+                        boolean avoidTolls, boolean dropShip) {
+        this.shipmentId = shipmentId; this.vehicleId = vehicleId;
         this.mode = mode; this.depotAddress = depotAddress;
         this.maxCapacity = maxCapacity; this.stops = stops;
+        this.minCost = minCost; this.minTime = minTime;
+        this.avoidTolls = avoidTolls; this.dropShip = dropShip;
     }
 
-    @Override public String getDeliveryId()              { return deliveryId; }
+    @Override public String getShipmentId()              { return shipmentId; }
+    @Override public String getDeliveryId()              { return shipmentId; }  // alias
     @Override public String getVehicleId()               { return vehicleId; }
     @Override public String getOptimizationMode()        { return mode; }
+    @Override public boolean isMinCost()                 { return minCost; }
+    @Override public boolean isMinTime()                 { return minTime; }
+    @Override public boolean isAvoidTolls()              { return avoidTolls; }
+    @Override public boolean isDropShip()                { return dropShip; }
     @Override public List<IDeliveryStop> getStops()      { return stops; }
     @Override public double getMaxVehicleCapacityKg()    { return maxCapacity; }
     @Override public String getDepotAddress()            { return depotAddress; }
@@ -655,32 +764,50 @@ class RouteOptimizerDemo {
             new DbDeliveryStop("STOP-004", 40.7282, -73.7949, "JFK Airport, NY",     2, 15.0)
         );
 
-        // ---- TEST A: Distance-based optimization ----
+        // ---- TEST A: Distance-based, MinTime constraint, standard warehouse route ----
         IRouteData routeDataA = new DbRouteData(
-                "DEL-2024-001", "VEH-TRUCK-7", "DISTANCE",
-                "200 Water St, NY", 500.0, stops);
+                "SHP-2024-001", "VEH-TRUCK-7", "DISTANCE",
+                "200 Water St, NY", 500.0, stops,
+                false, true, false, false);   // minCost=false, minTime=true, avoidTolls=false, dropShip=false
         facade.optimizeDeliveryCycle(routeDataA);
 
-        // ---- TEST B: Cost-based optimization ----
+        // ---- TEST B: Cost-based, MinCost + AvoidTolls constraints ----
         IRouteData routeDataB = new DbRouteData(
-                "DEL-2024-002", "VEH-VAN-3", "COST",
-                "200 Water St, NY", 300.0, stops);
+                "SHP-2024-002", "VEH-VAN-3", "COST",
+                "200 Water St, NY", 300.0, stops,
+                true, false, true, false);    // minCost=true, avoidTolls=true
         facade.optimizeDeliveryCycle(routeDataB);
 
-        // ---- TEST C: Priority-based optimization ----
+        // ---- TEST C: Priority-based, Next-Day SLA ----
         IRouteData routeDataC = new DbRouteData(
-                "DEL-2024-003", "VEH-BIKE-1", "PRIORITY",
-                "200 Water St, NY", 100.0, stops);
+                "SHP-2024-003", "VEH-BIKE-1", "PRIORITY",
+                "200 Water St, NY", 100.0, stops,
+                false, true, false, false);
         facade.optimizeDeliveryCycle(routeDataC);
 
-        // ---- TEST D: Swapping to OSRM adapter at runtime ----
+        // ---- TEST D: Drop-ship — bypasses warehouse entirely ----
+        List<IDeliveryStop> dropStops = Arrays.asList(
+            new DbDeliveryStop("STOP-DS1", 40.7128, -74.0060, "BlueDart Depot, NY", 1, 5.0)
+        );
+        IRouteData routeDataD = new DbRouteData(
+                "SHP-2024-004", "VEH-VAN-5", "DISTANCE",
+                "Supplier Warehouse, NJ", 200.0, dropStops,
+                false, false, false, true);   // dropShip=true
+        facade.optimizeDeliveryCycle(routeDataD);
+
+        // ---- TEST E: Real-Time Monitoring team fires an alert mid-route ----
+        System.out.println(">>> Ramen Noodles team fires an alert for SHP-2024-001...");
+        facade.onExternalAlert("ALT-009", "Accident on NH-48 — major delay", "SHP-2024-001");
+
+        // ---- TEST F: Swapping to OSRM adapter at runtime ----
         System.out.println(">>> Switching to OSRM adapter...");
         RouteOptimizerFacade osrmFacade = new RouteOptimizerFacade(
                 new OsrmAdapter(new OsrmHttpClient()));
         osrmFacade.subscribeToRouteEvents(new FleetTrackingListener());
-        IRouteData routeDataD = new DbRouteData(
-                "DEL-2024-004", "VEH-TRUCK-2", "DISTANCE",
-                "200 Water St, NY", 500.0, stops);
-        osrmFacade.optimizeDeliveryCycle(routeDataD);
+        IRouteData routeDataF = new DbRouteData(
+                "SHP-2024-005", "VEH-TRUCK-2", "DISTANCE",
+                "200 Water St, NY", 500.0, stops,
+                false, true, false, false);
+        osrmFacade.optimizeDeliveryCycle(routeDataF);
     }
 }
