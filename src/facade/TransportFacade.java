@@ -140,4 +140,33 @@ public class TransportFacade {
                "Cached Carriers: " + carrierFactory.getCachedCarrierCount() + "\n" +
                "Shipments stored: " + repository.size();
     }
+
+    // New facade methods
+    public entities.FreightAudit auditFreight(String auditId, String shipmentId, double invoicedAmount, double contractAmount) {
+        return transportService.auditFreight(auditId, shipmentId, invoicedAmount, contractAmount);
+    }
+
+    public entities.ConstraintPlanner planConstraints(String planId, String shipmentId, double weightLimit, double heightLimit, int shiftHours, String window) {
+        return transportService.planConstraints(planId, shipmentId, weightLimit, heightLimit, shiftHours, window);
+    }
+
+    public entities.Territory manageTerritory(String territoryId, String zoneName, String area, int drivers) {
+        return transportService.manageTerritory(territoryId, zoneName, area, drivers);
+    }
+
+    public entities.OrderOrchestrator orchestrateOrder(String orderId, String salesOrderId, boolean isThirdParty, String supplierId) {
+        return transportService.orchestrateOrder(orderId, salesOrderId, isThirdParty, supplierId);
+    }
+
+    public entities.SupplierPortal integrateSupplierPortal(String portalId, String supplierId, String orderDetails) {
+        return transportService.integrateSupplierPortal(portalId, supplierId, orderDetails);
+    }
+
+    public entities.TrackingSync syncTracking(String syncId, String orderId, String trackingNumber) {
+        return transportService.syncTracking(syncId, orderId, trackingNumber);
+    }
+
+    public entities.ReverseLogistics handleReverseLogistics(String returnId, String orderId, String supplierId, double refund) {
+        return transportService.handleReverseLogistics(returnId, orderId, supplierId, refund);
+    }
 }

@@ -71,4 +71,61 @@ public class TransportServiceProxy implements ITransportService {
         System.out.println("[PROXY LOG] Retrieved " + results.size() + " shipments");
         return results;
     }
+
+    // New proxy methods with logging
+    @Override
+    public entities.FreightAudit auditFreight(String auditId, String shipmentId, double invoicedAmount, double contractAmount) {
+        System.out.println("[PROXY LOG] Auditing freight for shipment: " + shipmentId);
+        entities.FreightAudit result = realService.auditFreight(auditId, shipmentId, invoicedAmount, contractAmount);
+        System.out.println("[PROXY LOG] Audit completed: " + result.getDiscrepancyFlag());
+        return result;
+    }
+
+    @Override
+    public entities.ConstraintPlanner planConstraints(String planId, String shipmentId, double weightLimit, double heightLimit, int shiftHours, String window) {
+        System.out.println("[PROXY LOG] Planning constraints for shipment: " + shipmentId);
+        entities.ConstraintPlanner result = realService.planConstraints(planId, shipmentId, weightLimit, heightLimit, shiftHours, window);
+        System.out.println("[PROXY LOG] Constraints planned");
+        return result;
+    }
+
+    @Override
+    public entities.Territory manageTerritory(String territoryId, String zoneName, String area, int drivers) {
+        System.out.println("[PROXY LOG] Managing territory: " + territoryId);
+        entities.Territory result = realService.manageTerritory(territoryId, zoneName, area, drivers);
+        System.out.println("[PROXY LOG] Territory managed");
+        return result;
+    }
+
+    @Override
+    public entities.OrderOrchestrator orchestrateOrder(String orderId, String salesOrderId, boolean isThirdParty, String supplierId) {
+        System.out.println("[PROXY LOG] Orchestrating order: " + orderId);
+        entities.OrderOrchestrator result = realService.orchestrateOrder(orderId, salesOrderId, isThirdParty, supplierId);
+        System.out.println("[PROXY LOG] Order orchestrated");
+        return result;
+    }
+
+    @Override
+    public entities.SupplierPortal integrateSupplierPortal(String portalId, String supplierId, String orderDetails) {
+        System.out.println("[PROXY LOG] Integrating supplier portal: " + portalId);
+        entities.SupplierPortal result = realService.integrateSupplierPortal(portalId, supplierId, orderDetails);
+        System.out.println("[PROXY LOG] Portal integrated");
+        return result;
+    }
+
+    @Override
+    public entities.TrackingSync syncTracking(String syncId, String orderId, String trackingNumber) {
+        System.out.println("[PROXY LOG] Syncing tracking for order: " + orderId);
+        entities.TrackingSync result = realService.syncTracking(syncId, orderId, trackingNumber);
+        System.out.println("[PROXY LOG] Tracking synced");
+        return result;
+    }
+
+    @Override
+    public entities.ReverseLogistics handleReverseLogistics(String returnId, String orderId, String supplierId, double refund) {
+        System.out.println("[PROXY LOG] Handling reverse logistics for return: " + returnId);
+        entities.ReverseLogistics result = realService.handleReverseLogistics(returnId, orderId, supplierId, refund);
+        System.out.println("[PROXY LOG] Reverse logistics handled");
+        return result;
+    }
 }

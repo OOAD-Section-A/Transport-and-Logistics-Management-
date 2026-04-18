@@ -98,6 +98,42 @@ public class TransportController {
         System.out.println(data);
     }
 
+    // New controller methods
+    public entities.FreightAudit handleAuditFreight(String auditId, String shipmentId, double invoicedAmount, double contractAmount) {
+        System.out.println("\n=== AUDIT FREIGHT ===");
+        return facade.auditFreight(auditId, shipmentId, invoicedAmount, contractAmount);
+    }
+
+    public entities.ConstraintPlanner handlePlanConstraints(String planId, String shipmentId, double weightLimit, double heightLimit, int shiftHours, String window) {
+        System.out.println("\n=== PLAN CONSTRAINTS ===");
+        return facade.planConstraints(planId, shipmentId, weightLimit, heightLimit, shiftHours, window);
+    }
+
+    public entities.Territory handleManageTerritory(String territoryId, String zoneName, String area, int drivers) {
+        System.out.println("\n=== MANAGE TERRITORY ===");
+        return facade.manageTerritory(territoryId, zoneName, area, drivers);
+    }
+
+    public entities.OrderOrchestrator handleOrchestrateOrder(String orderId, String salesOrderId, boolean isThirdParty, String supplierId) {
+        System.out.println("\n=== ORCHESTRATE ORDER ===");
+        return facade.orchestrateOrder(orderId, salesOrderId, isThirdParty, supplierId);
+    }
+
+    public entities.SupplierPortal handleIntegrateSupplierPortal(String portalId, String supplierId, String orderDetails) {
+        System.out.println("\n=== INTEGRATE SUPPLIER PORTAL ===");
+        return facade.integrateSupplierPortal(portalId, supplierId, orderDetails);
+    }
+
+    public entities.TrackingSync handleSyncTracking(String syncId, String orderId, String trackingNumber) {
+        System.out.println("\n=== SYNC TRACKING ===");
+        return facade.syncTracking(syncId, orderId, trackingNumber);
+    }
+
+    public entities.ReverseLogistics handleReverseLogistics(String returnId, String orderId, String supplierId, double refund) {
+        System.out.println("\n=== HANDLE REVERSE LOGISTICS ===");
+        return facade.handleReverseLogistics(returnId, orderId, supplierId, refund);
+    }
+
     /**
      * Build validation chain using Chain of Responsibility pattern
      */

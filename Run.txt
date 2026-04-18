@@ -1,0 +1,1 @@
+cd "c:\Users\Aarya-2\Documents\ADOG\PESU\3rd Year --PESU\6th Sem\OOPs\OOAD_project\OOAD_Main\Transport-and-Logistics-Management-"; javac -cp "src" src/**/*.java

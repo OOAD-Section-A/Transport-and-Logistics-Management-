@@ -80,6 +80,21 @@ public final class RouteOptimizer implements IMLAlgorithmicExceptionSource, IRes
         }
     }
 
+    // Multi-Stop & Multi-Modal Routing
+    public RoutePlan optimizeMultiStop(java.util.List<RouteRequest> requests) {
+        // Minimal implementation: Optimize each request separately and combine
+        int totalEta = 0;
+        String combinedRouteId = "";
+        boolean lowConfidence = false;
+        for (RouteRequest req : requests) {
+            RoutePlan plan = optimize(req);
+            totalEta += plan.etaMinutes();
+            combinedRouteId += plan.routeId() + ";";
+            if (plan.lowConfidence()) lowConfidence = true;
+        }
+        return new RoutePlan(combinedRouteId, totalEta, lowConfidence);
+    }
+
     public void registerHandler(SCMExceptionHandler handler) {
         this.handler = handler;
     }
