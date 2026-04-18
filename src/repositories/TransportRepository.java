@@ -1,10 +1,13 @@
 package repositories;
 
 import entities.Shipment;
+import entities.Carrier;
+import entities.Territory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 /**
  * Repository: TransportRepository
@@ -14,6 +17,8 @@ import java.util.ArrayList;
  */
 public class TransportRepository {
     private Map<String, Shipment> shipmentStore = new HashMap<>();
+    private Map<String, Carrier> carrierStore = new HashMap<>();
+    private Map<String, Territory> territoryStore = new HashMap<>();
 
     /**
      * Store a shipment in repository
@@ -64,5 +69,23 @@ public class TransportRepository {
      */
     public int size() {
         return shipmentStore.size();
+    }
+
+    // Carrier methods
+    public void addCarrier(Carrier carrier) {
+        carrierStore.put(carrier.getCarrierId(), carrier);
+    }
+
+    public List<Carrier> getAllCarriers(String mode) {
+        List<Carrier> all = new ArrayList<>(carrierStore.values());
+        if (mode != null) {
+            all = all.stream().filter(c -> mode.equals(c.getTransportMode())).collect(Collectors.toList());
+        }
+        return all;
+    }
+
+    // Territory methods
+    public List<Territory> getAllTerritories() {
+        return new ArrayList<>(territoryStore.values());
     }
 }

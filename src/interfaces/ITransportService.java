@@ -9,7 +9,7 @@ import java.util.List;
  * Used by Controller to interact with service layer
  */
 public interface ITransportService {
-    void createShipment(Shipment shipment);
+    Shipment createShipment(Shipment shipment);
     void updateShipmentStatus(String shipmentId, String status);
     Shipment getShipment(String shipmentId);
     List<Shipment> getAllShipments();

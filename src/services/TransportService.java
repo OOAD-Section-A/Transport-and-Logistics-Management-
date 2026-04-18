@@ -3,7 +3,9 @@ package services;
 import entities.*;
 import interfaces.ITransportService;
 import repositories.TransportRepository;
-import java.util.List;
+import exceptions.SCMException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Service: TransportService
@@ -18,8 +20,9 @@ public class TransportService implements ITransportService {
     }
 
     @Override
-    public void createShipment(Shipment shipment) {
+    public Shipment createShipment(Shipment shipment) {
         repository.addShipment(shipment);
+        return shipment;
     }
 
     @Override
@@ -77,5 +80,50 @@ public class TransportService implements ITransportService {
     @Override
     public ReverseLogistics handleReverseLogistics(String returnId, String orderId, String supplierId, double refund) {
         return new ReverseLogistics(returnId, orderId, supplierId, refund, "PENDING");
+    }
+
+    // API-specific methods
+    public List<Shipment> getAllShipments(String status, int page, int size) {
+        List<Shipment> all = repository.getAllShipments();
+        if (status != null) {
+            all = all.stream().filter(s -> status.equals(s.getStatus())).collect(Collectors.toList());
+        }
+        int start = (page - 1) * size;
+        int end = Math.min(start + size, all.size());
+        return all.subList(start, end);
+    }
+
+    public List<Carrier> getAllCarriers(String mode) {
+        return repository.getAllCarriers(mode);
+    }
+
+    public Carrier createCarrier(Carrier carrier) {
+        repository.addCarrier(carrier);
+        return carrier;
+    }
+
+    public Map<String, Object> optimizeRoute(String origin, String destination, String constraints) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("route", Arrays.asList(origin, "Intermediate Point", destination));
+        result.put("estimatedTime", "4 hours");
+        result.put("cost", 120.0);
+        return result;
+    }
+
+    public List<Territory> getAllTerritories() {
+        return repository.getAllTerritories();
+    }
+
+    public String reportException(SCMException exception) {
+        System.out.println("Exception reported: " + exception.getMessage());
+        return "Exception ID: " + exception.getExceptionId();
+    }
+
+    public Map<String, Object> getTrackingData(String shipmentId) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("currentLocation", "En route to destination");
+        data.put("eta", "2026-04-20T14:00:00Z");
+        data.put("status", "On time");
+        return data;
     }
 }
