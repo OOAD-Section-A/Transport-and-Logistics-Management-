@@ -1,7 +1,7 @@
 package controllers;
 
-import exceptions.SCMException;
-import services.TransportService;
+import com.scm.core.SCMException;
+import com.scm.handler.SCMExceptionHandler;
 
 /**
  * REST Controller for Exception Handling APIs.
@@ -9,17 +9,12 @@ import services.TransportService;
  */
 public class ExceptionController {
 
-    private TransportService transportService;
-
-    public ExceptionController(TransportService transportService) {
-        this.transportService = transportService;
-    }
-
     /**
      * POST /exceptions
      * Reports an exception.
      */
     public String reportException(SCMException exception) {
-        return transportService.reportException(exception);
+        SCMExceptionHandler.INSTANCE.handle(exception);
+        return "Exception ID: " + exception.getExceptionId();
     }
 }

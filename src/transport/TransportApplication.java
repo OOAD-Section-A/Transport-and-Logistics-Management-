@@ -9,6 +9,8 @@ import factories.TransportFactory;
 import factories.ShipmentBuilder;
 import factories.PrototypeRegistry;
 import java.util.Date;
+import com.scm.factory.SCMExceptionFactory;
+import com.scm.handler.SCMExceptionHandler;
 
 /**
  * TransportApplication: Main entry point
@@ -113,7 +115,10 @@ public class TransportApplication {
             field.setAccessible(true);
             field.set(shipment3Cloned, "SHIP003");
         } catch (Exception e) {
-            e.printStackTrace();
+            SCMExceptionHandler.INSTANCE.handle(
+                SCMExceptionFactory.createUnregistered("Transport and Logistics Management", "Failed to rename cloned shipment: " + e.getMessage())
+            );
+            return;
         }
         view.displayMessage("Renamed cloned shipment to: SHIP003");
 

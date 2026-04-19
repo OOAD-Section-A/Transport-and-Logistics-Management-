@@ -2,7 +2,7 @@ package transport;
 
 import adapters.*;
 import entities.AlertManager.*;
-import exceptions.*;
+import entities.AlertManager.AlertLevel;
 
 /**
  * ExtendedTransportApplication
@@ -18,18 +18,10 @@ public class ExtendedTransportApplication {
     public static void main(String[] args) {
         System.out.println("\n========== TRANSPORT MANAGEMENT SYSTEM ==========\n");
         
-        // Create exception handler for centralized logging
-        SCMExceptionHandler handler = (msg, severity) -> 
-            System.out.println("[" + severity + "] " + msg);
-        
         // Initialize components (Low coupling via adapters)
         RouteOptimizerAdapter routeAdapter = new RouteOptimizerAdapter();
         LiveTrackingAdapter trackingAdapter = new LiveTrackingAdapter();
         AlertManagerAdapter alertAdapter = new AlertManagerAdapter();
-        
-        routeAdapter.registerHandler(handler);
-        trackingAdapter.registerHandler(handler);
-        alertAdapter.registerHandler(handler);
         
         // Run demonstrations
         demo1_RouteOptimization(routeAdapter);

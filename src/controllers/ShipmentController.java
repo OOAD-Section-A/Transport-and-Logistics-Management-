@@ -1,8 +1,8 @@
 package controllers;
 
 import entities.Shipment;
-import services.TransportService;
 import java.util.List;
+import services.TransportService;
 
 /**
  * REST Controller for Shipment-related APIs.
@@ -38,7 +38,8 @@ public class ShipmentController {
      * Updates shipment status.
      */
     public boolean updateShipmentStatus(String id, String status) {
-        return transportService.updateShipmentStatus(id, status);
+        transportService.updateShipmentStatus(id, status);
+        return true;
     }
 
     /**

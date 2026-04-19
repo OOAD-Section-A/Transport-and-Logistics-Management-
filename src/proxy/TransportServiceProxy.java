@@ -3,6 +3,7 @@ package proxy;
 import interfaces.ITransportService;
 import entities.Shipment;
 import java.util.List;
+import com.scm.subsystems.TransportLogisticsSubsystem;
 
 /**
  * Proxy: TransportServiceProxy
@@ -16,24 +17,29 @@ import java.util.List;
  * - Controls access to real service
  */
 public class TransportServiceProxy implements ITransportService {
-    private ITransportService realService;
+    private final ITransportService realService;
+    private final TransportLogisticsSubsystem exceptions = TransportLogisticsSubsystem.INSTANCE;
 
     public TransportServiceProxy(ITransportService realService) {
         this.realService = realService;
     }
 
     @Override
-    public void createShipment(Shipment shipment) {
+    public Shipment createShipment(Shipment shipment) {
         long startTime = System.currentTimeMillis();
         System.out.println("[PROXY LOG] Creating shipment: " + shipment.getShipmentId());
         
         try {
-            realService.createShipment(shipment);
+            Shipment created = realService.createShipment(shipment);
             long duration = System.currentTimeMillis() - startTime;
             System.out.println("[PROXY LOG] Shipment created successfully in " + duration + "ms");
+            return created;
         } catch (Exception e) {
-            System.out.println("[PROXY LOG] ERROR creating shipment: " + e.getMessage());
-            throw e;
+            exceptions.onNoViableRouteFound(
+                shipment != null ? shipment.getShipmentId() : "UNKNOWN",
+                "Proxy createShipment failed"
+            );
+            return null;
         }
     }
 
@@ -47,8 +53,8 @@ public class TransportServiceProxy implements ITransportService {
             long duration = System.currentTimeMillis() - startTime;
             System.out.println("[PROXY LOG] Status updated successfully in " + duration + "ms");
         } catch (Exception e) {
-            System.out.println("[PROXY LOG] ERROR updating status: " + e.getMessage());
-            throw e;
+            exceptions.onCarrierApiTimeout("STATUS_UPDATE", 3000);
+            return;
         }
     }
 

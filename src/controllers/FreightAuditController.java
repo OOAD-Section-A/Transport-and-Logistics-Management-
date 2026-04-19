@@ -20,6 +20,6 @@ public class FreightAuditController {
      * Performs freight cost audit.
      */
     public FreightAudit performAudit(String shipmentId, double invoicedAmount, double contractAmount) {
-        return transportService.auditFreight(shipmentId, invoicedAmount, contractAmount);
+        return transportService.auditFreight("AUD-" + shipmentId, shipmentId, invoicedAmount, contractAmount);
     }
 }
