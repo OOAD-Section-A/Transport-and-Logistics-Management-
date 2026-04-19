@@ -22,4 +22,8 @@ public interface ITransportService {
     SupplierPortal integrateSupplierPortal(String portalId, String supplierId, String orderDetails);
     TrackingSync syncTracking(String syncId, String orderId, String trackingNumber);
     ReverseLogistics handleReverseLogistics(String returnId, String orderId, String supplierId, double refund);
+    Rider getRiderDetails(String riderId);
+    List<Rider> getAvailableRiders(String zone);
+    RoutePlan calculateOptimalRoute(String pickup, String dropoff, List<String> waypoints);
+    void reportVehicleHealth(String riderId, VehicleHealthReport report);
 }
