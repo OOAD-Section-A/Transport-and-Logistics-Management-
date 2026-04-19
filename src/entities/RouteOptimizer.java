@@ -1,8 +1,9 @@
 package entities;
 
-import java.util.Map;
 import java.util.Objects;
 import exceptions.*;
+import com.scm.factory.SCMExceptionFactory;
+import com.scm.subsystems.TransportLogisticsSubsystem;
 
 /**
  * RouteOptimizer Entity
@@ -31,20 +32,10 @@ public final class RouteOptimizer implements IMLAlgorithmicExceptionSource, IRes
             }
         }
     }
-    private static final Map<Integer, ExceptionSpec> CATALOG = Map.of(
-            161, new ExceptionSpec("CARRIER_UNAVAILABLE", Severity.MAJOR,
-                    "Transport and Logistics Management", "No carrier is available for the route."),
-            170, new ExceptionSpec("ROUTE_INFORMATION_UNAVAILABLE", Severity.MINOR,
-                    "Delivery Orders", "Route information for the delivery agent could not be retrieved."),
-            462, new ExceptionSpec("NO_VIABLE_ROUTE_FOUND", Severity.WARNING,
-                    "Transport and Logistics Management", "Routing algorithm could not find any valid route."),
-            463, new ExceptionSpec("CRITICAL_TRANSIT_DELAY", Severity.WARNING,
-                    "Transport and Logistics Management", "Transit delay exceeds critical threshold.")
-    );
     private final RoutingEngine engine;
     private final FallbackPolicy fallbackPolicy;
     private final CarrierGateway carrierGateway;
-    private SCMExceptionHandler handler;
+    private final TransportLogisticsSubsystem exceptions = TransportLogisticsSubsystem.INSTANCE;
     public static Port create(RoutingEngine routingEngine, FallbackPolicy fallbackPolicy, CarrierGateway carrierGateway) {
         RouteOptimizer impl = new RouteOptimizer(routingEngine, fallbackPolicy, carrierGateway);
         return new Port() {
@@ -60,22 +51,26 @@ public final class RouteOptimizer implements IMLAlgorithmicExceptionSource, IRes
     public RoutePlan optimize(RouteRequest request) {
         try {
             if (carrierGateway.availableCarriers(request.corridorId()) <= 0) {
-                fireResourceExhausted(161, "Carrier", request.corridorId(), 1, 0);
+                exceptions.onCarrierUnavailable(request.corridorId());
                 return fallbackPolicy.fallback(request);
             }
             RoutePlan candidate = engine.solve(request);
             if (candidate == null || candidate.routeId().isBlank()) {
-                fireModelFailure(462, "RouteOptimizerV1", "Model returned no viable route.");
+                exceptions.onNoViableRouteFound(request.shipmentId(), request.corridorId());
                 return fallbackPolicy.fallback(request);
             }
             if (candidate.etaMinutes() > request.slaMinutes()) {
-                fireAlgorithmicAlert(463, "RouteOptimizer", request.shipmentId(), "ETA " + candidate.etaMinutes()
-                        + " exceeds SLA " + request.slaMinutes() + ".");
+                exceptions.onCriticalTransitDelay(
+                        request.shipmentId(),
+                        candidate.etaMinutes() - request.slaMinutes()
+                );
                 return new RoutePlan(candidate.routeId(), candidate.etaMinutes(), true);
             }
             return candidate;
         } catch (RuntimeException ex) {
-            raise(0, Severity.MAJOR, "Unregistered exception in RouteOptimizer: " + ex.getMessage());
+            com.scm.handler.SCMExceptionHandler.INSTANCE.handle(
+                SCMExceptionFactory.createUnregistered("Transport and Logistics Management", "RouteOptimizer failed: " + ex.getMessage())
+            );
             return fallbackPolicy.fallback(request);
         }
     }
@@ -96,18 +91,14 @@ public final class RouteOptimizer implements IMLAlgorithmicExceptionSource, IRes
     }
 
     public void registerHandler(SCMExceptionHandler handler) {
-        this.handler = handler;
+        // No-op: real handler is managed by the exception module singleton.
     }
-    private void raise(int id, Severity fallback, String detail) {
-        SCMEvents.emit(CATALOG, handler, id, fallback, detail,
-                "Transport and Logistics Management", "Unregistered transport exception.");
-    }
-    @Override public void fireModelFailure(int exceptionId, String modelName, String reason) { raise(exceptionId, Severity.MAJOR, modelName + " failure: " + reason); }
-    @Override public void fireModelDegradation(int exceptionId, String modelName, String metric, double threshold, double actual) { raise(exceptionId, Severity.MINOR, modelName + " degraded on " + metric + " threshold=" + threshold + " actual=" + actual); }
-    @Override public void fireMissingInputData(int exceptionId, String modelName, String missingDataType, String affectedPeriod) { raise(exceptionId, Severity.MINOR, modelName + " missing " + missingDataType + " for period " + affectedPeriod); }
-    @Override public void fireAlgorithmicAlert(int exceptionId, String processName, String entityId, String detail) { raise(exceptionId, Severity.WARNING, processName + " entity=" + entityId + " detail=" + detail); }
-    @Override public void fireResourceNotFound(int exceptionId, String resourceType, String resourceId) { raise(exceptionId, Severity.MINOR, resourceType + " not found: " + resourceId); }
-    @Override public void fireResourceExhausted(int exceptionId, String resourceType, String resourceId, int requested, int available) { raise(exceptionId, Severity.MAJOR, resourceType + " exhausted for " + resourceId + " requested=" + requested + " available=" + available); }
-    @Override public void fireResourceBlocked(int exceptionId, String resourceType, String resourceId, String reason) { raise(exceptionId, Severity.MINOR, resourceType + " blocked for " + resourceId + " reason=" + reason); }
-    @Override public void fireCapacityExceeded(int exceptionId, String resourceType, String resourceId, int limit) { raise(exceptionId, Severity.MAJOR, resourceType + " limit exceeded for " + resourceId + " limit=" + limit); }
+    @Override public void fireModelFailure(int exceptionId, String modelName, String reason) { exceptions.onNoViableRouteFound(modelName, reason); }
+    @Override public void fireModelDegradation(int exceptionId, String modelName, String metric, double threshold, double actual) { exceptions.onNoViableRouteFound(modelName, metric); }
+    @Override public void fireMissingInputData(int exceptionId, String modelName, String missingDataType, String affectedPeriod) { exceptions.onNoViableRouteFound(modelName, missingDataType); }
+    @Override public void fireAlgorithmicAlert(int exceptionId, String processName, String entityId, String detail) { exceptions.onCriticalTransitDelay(entityId, 0); }
+    @Override public void fireResourceNotFound(int exceptionId, String resourceType, String resourceId) { exceptions.onCarrierUnavailable(resourceId); }
+    @Override public void fireResourceExhausted(int exceptionId, String resourceType, String resourceId, int requested, int available) { exceptions.onCarrierUnavailable(resourceId); }
+    @Override public void fireResourceBlocked(int exceptionId, String resourceType, String resourceId, String reason) { exceptions.onCarrierUnavailable(resourceId); }
+    @Override public void fireCapacityExceeded(int exceptionId, String resourceType, String resourceId, int limit) { exceptions.onWeightLimitExceeded(resourceId, limit + 1, limit); }
 }

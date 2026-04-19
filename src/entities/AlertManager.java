@@ -1,10 +1,10 @@
 package entities;
 
-import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
 import exceptions.*;
+import com.scm.factory.SCMExceptionFactory;
+import com.scm.subsystems.TransportLogisticsSubsystem;
 
 /**
  * Alert Manager
@@ -25,13 +25,6 @@ public final class AlertManager implements IStateWorkflowExceptionSource {
     
     public record AlertEnvelope(String entityId, String processName, AlertLevel level,
                                 String message, long elapsedMs, long slaMs) {}
-    
-    private static final Map<Integer, ExceptionSpec> CATALOG = Map.of(
-        211, new ExceptionSpec("DELIVERY_TIMEOUT", Severity.MAJOR,
-                "Management", "Delivery exceeded time window."),
-        213, new ExceptionSpec("PARTIAL_DELIVERY", Severity.WARNING,
-                "Management", "Only partial delivery recorded.")
-    );
     
     private static final class Link {
         private final Predicate<AlertEnvelope> matcher;
@@ -58,7 +51,7 @@ public final class AlertManager implements IStateWorkflowExceptionSource {
     }
     
     private final Link chainHead;
-    private SCMExceptionHandler handler;
+    private final TransportLogisticsSubsystem exceptions = TransportLogisticsSubsystem.INSTANCE;
     
     public static Port create(AlertChannel critical, AlertChannel major, AlertChannel warning) {
         AlertManager impl = new AlertManager(critical, major, warning);
@@ -77,37 +70,38 @@ public final class AlertManager implements IStateWorkflowExceptionSource {
     
     public void emit(AlertEnvelope envelope) {
         try {
-            String normalized = envelope.message().toLowerCase(Locale.ROOT);
-            
             if (envelope.elapsedMs() > envelope.slaMs() * 2) {
-                fireWorkflowTimeout(211, envelope.processName(), envelope.entityId(), envelope.elapsedMs());
+                fireWorkflowTimeout(463, envelope.processName(), envelope.entityId(), envelope.elapsedMs());
                 return;
             }
-            
+
             if (envelope.elapsedMs() > envelope.slaMs()) {
-                fireSLABreach(213, envelope.processName(), envelope.entityId(), 
+                fireSLABreach(463, envelope.processName(), envelope.entityId(),
                     envelope.slaMs(), envelope.elapsedMs());
                 return;
             }
-            
+
             chainHead.handle(envelope);
         } catch (Exception ex) {
-            raise(0, Severity.MINOR, "Alert error: " + ex.getMessage());
+            com.scm.handler.SCMExceptionHandler.INSTANCE.handle(
+                SCMExceptionFactory.createUnregistered("Transport and Logistics Management", "AlertManager failed: " + ex.getMessage())
+            );
+            return;
         }
     }
-    
-    public void registerHandler(SCMExceptionHandler h) { this.handler = h; }
-    
-    private void raise(int id, Severity sev, String detail) {
-        SCMEvents.emit(CATALOG, handler, id, sev, detail, "Management", detail);
+
+    public void registerHandler(SCMExceptionHandler h) { }
+
+    private void raise(long elapsedMs, String entityId) {
+        exceptions.onCriticalTransitDelay(entityId, elapsedMs);
     }
-    
+
     @Override public void fireInvalidEntityState(int id, String type, String eid, String curr, String req) { }
-    @Override public void fireWorkflowTimeout(int id, String workflow, String entity, long elapsedMs) { 
-        raise(id, Severity.MAJOR, workflow + " timeout"); 
+    @Override public void fireWorkflowTimeout(int id, String workflow, String entity, long elapsedMs) {
+        raise(elapsedMs, entity);
     }
     @Override public void fireExpiredEntity(int id, String type, String entity, String attr) { }
-    @Override public void fireSLABreach(int id, String process, String entity, long slaMs, long actualMs) { 
-        raise(id, Severity.WARNING, entity + " SLA breach"); 
+    @Override public void fireSLABreach(int id, String process, String entity, long slaMs, long actualMs) {
+        raise(actualMs - slaMs, entity);
     }
 }

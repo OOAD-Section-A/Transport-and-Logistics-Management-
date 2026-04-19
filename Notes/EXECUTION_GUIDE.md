@@ -1,90 +1,66 @@
-# Clean Execution Guide - Transport Management System
+# Execution Guide - Transport and Logistics Management
 
 ## Overview
-This guide ensures clean execution of the TMS without interference from old compiled files or cached data.
+This project now uses the shared SCM exception modules directly, aligned with the realtime-delivery-monitoring integration style and team instructions.
 
-## Quick Clean & Run (Windows)
-1. Double-click `clean_and_run.bat` in the project root
-2. Or run manually in Command Prompt:
-   ```batch
-   cd "Transport-and-Logistics-Management-"
-   clean_and_run.bat
-   ```
+## Prerequisites
+- JDK available in PATH (`javac`, `java`)
+- These module folders present inside the project:
+  - `libs\scm-exception-handler-v3.jar`
+  - `libs\scm-exception-foundation.jar`
+  - Required for DB-backed logging: `libs\database-module-1.0.0-SNAPSHOT-standalone.jar`
+  - Required config: `libs\database.properties`
+  - Schema reference: `Notes\database\schema.sql`
 
-## Manual Steps (Command Prompt)
-
-### Step 1: Clean Old Files
+## Quick Run (Windows)
 ```batch
-REM Navigate to project
-cd "c:\Users\Aarya-2\Documents\ADOG\PESU\3rd Year --PESU\6th Sem\OOPs\OOAD_project\OOAD_Main\Transport-and-Logistics-Management-"
+cd "c:\AIML\OOAD\Transport-and-Logistics-Management-\cmd"
+clean_and_run.bat
+```
 
-REM Delete all compiled class files and remove old bin
-for /r %%f in (*.class) do del /F /Q "%%f"
+## Build Integration JAR (Windows)
+Create a reusable JAR for partner teams:
+
+```batch
+cd "c:\AIML\OOAD\Transport-and-Logistics-Management-\cmd"
+build_integration_jar.bat
+```
+
+Generated outputs:
+- `libs\transport-and-logistics-management.jar` (primary artifact to share)
+- `dist\transport-and-logistics-management.jar` (mirror copy)
+
+Example usage by another subsystem:
+
+```batch
+javac -cp "lib\transport-and-logistics-management.jar" MyIntegration.java
+java -cp "lib\transport-and-logistics-management.jar;." MyIntegrationMain
+```
+
+## Manual Build and Run
+```batch
+cd "c:\AIML\OOAD\Transport-and-Logistics-Management-"
 if exist bin rmdir /S /Q bin
 mkdir bin
+
+dir /s /b src\*.java > sources.list
+javac -cp "src;libs;libs\scm-exception-handler-v3.jar;libs\scm-exception-foundation.jar;libs\database-module-1.0.0-SNAPSHOT-standalone.jar" -d bin @sources.list
+java -cp "bin;libs;libs\scm-exception-handler-v3.jar;libs\scm-exception-foundation.jar;libs\database-module-1.0.0-SNAPSHOT-standalone.jar" transport.TransportApplication
+del /F /Q sources.list
 ```
 
-### Step 2: Compile Fresh
+## Exception Handling Integration Notes
+- Transport exception calls use `TransportLogisticsSubsystem.INSTANCE`.
+- Catch blocks report through `SCMExceptionHandler.INSTANCE.handle(...)` where needed.
+- No local custom exception stack is required for runtime handling.
+
+## Optional Viewer Launch
+If the viewer module is available:
 ```batch
-REM Compile all Java sources recursively
-for /r src %%f in (*.java) do javac -cp src -d bin "%%f"
+java -cp "libs;libs\scm-exception-handler-v3.jar;libs\scm-exception-viewer-gui.jar;libs\database-module-1.0.0-SNAPSHOT-standalone.jar" com.scm.gui.ExceptionViewerGUI
 ```
-
-### Step 3: Run Application
-```batch
-REM Execute the main demo
-java -cp bin transport.TransportApplication
-```
-
-### Optional Clean Scripts
-```batch
-clean_classes.bat
-```
-
-### Optional PowerShell Clean
-```powershell
-./clean_classes.ps1
-```
-
-## What the Process Does
-- **Cleans**: Removes entire `bin/` directory to prevent stale code issues
-- **Compiles**: Fresh compilation with proper classpath to `bin/`
-- **Runs**: Executes the full TMS demo with all features
-- **Verifies**: Checks for errors and reports status
-
-## Features Demonstrated
-- All 7 design patterns (Factory, Builder, Prototype, Adapter, Facade, Proxy, Flyweight)
-- MVC architecture (Controller → Facade → Service → Repository)
-- SOLID & GRASP principles
-- New TMS features: Freight Audit, Constraint Planning, Territory Management, etc.
-- In-memory database (no external dependencies)
 
 ## Troubleshooting
-- If compilation fails: Check Java JDK installation and PATH
-- If runtime fails: Ensure all source files are present in `src/`
-- For tests: Need JUnit JAR, then `javac -cp "junit.jar;src" test/**/*.java`
-- Permission issues: Run as Administrator or check folder permissions
-- If `.class` files were previously tracked, untrack them with:
-  ```batch
-  git rm --cached -r *.class
-  git add .gitignore
-  git commit -m "Untrack compiled class files"
-  ```
-
-## Output
-- Console demo showing all patterns and features
-- No persistent files created (all in-memory)
-- Clean exit with success message
-
-## File Structure
-```
-Transport-and-Logistics-Management-/
-├── src/                    # Source code
-├── bin/                    # Compiled classes (created during build)
-├── test/                   # Unit tests
-├── clean_and_run.bat       # Automated clean + run script
-├── EXECUTION_GUIDE.md      # This file
-└── TMS_CHANGES.md          # Implementation details
-```
-
-**Status: READY FOR CLEAN EXECUTION**
+- If `package com.scm... does not exist`, verify both SCM module paths.
+- Ensure `libs\database.properties` points to a reachable MySQL instance and schema is applied.
+- If runtime fails, re-run `cmd\clean_and_run.bat` after deleting `bin`.
