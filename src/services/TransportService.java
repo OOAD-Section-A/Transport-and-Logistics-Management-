@@ -1,60 +1,50 @@
 package services;
 
-import entities.*;
-import interfaces.ITransportService;
-import repositories.TransportRepository;
 import com.scm.core.SCMException;
 import com.scm.factory.SCMExceptionFactory;
 import com.scm.handler.SCMExceptionHandler;
 import com.scm.subsystems.TransportLogisticsSubsystem;
+import entities.*;
+import interfaces.ITransportService;
+import repositories.TransportRepository;
+import java.util.List;
+import java.util.Map;
 
-import java.util.*;
-import java.util.stream.Collectors;
-
-/**
- * Service: TransportService
- * SOLID: SRP - Single responsibility (business logic only)
- * MVC: Model layer - handles business operations
- */
 public class TransportService implements ITransportService {
+    private static final double MAX_SHIPMENT_WEIGHT = 100.0;
     private final TransportRepository repository;
     private final TransportLogisticsSubsystem exceptions = TransportLogisticsSubsystem.INSTANCE;
+    private final TransportFeatureFactory featureFactory = new TransportFeatureFactory();
+    private final TransportQueryOperations queryOperations;
 
     public TransportService(TransportRepository repository) {
         this.repository = repository;
+        this.queryOperations = new TransportQueryOperations(repository, exceptions);
     }
 
     @Override
     public Shipment createShipment(Shipment shipment) {
         if (shipment == null) {
-            SCMExceptionHandler.INSTANCE.handle(
-                SCMExceptionFactory.createUnregistered("Transport and Logistics Management", "shipment cannot be null")
-            );
+            handleUnregistered("shipment cannot be null");
             return null;
         }
-
         if (shipment.getDestination() == null || !shipment.getDestination().matches("\\d{6}")) {
             exceptions.onInvalidDestPincode(shipment.getShipmentId(), shipment.getDestination());
             return null;
         }
-
-        if (shipment.getWeight() > 100.0) {
-            exceptions.onWeightLimitExceeded(shipment.getShipmentId(), shipment.getWeight(), 100.0);
+        if (shipment.getWeight() > MAX_SHIPMENT_WEIGHT) {
+            exceptions.onWeightLimitExceeded(shipment.getShipmentId(), shipment.getWeight(), MAX_SHIPMENT_WEIGHT);
             return null;
         }
-
         if (shipment.getSupplierId() == null || shipment.getSupplierId().isBlank()) {
             exceptions.onSupplierOutOfStock("UNKNOWN", "UNSPECIFIED", 1);
             return null;
         }
-
         try {
             repository.addShipment(shipment);
             return shipment;
         } catch (RuntimeException ex) {
-            SCMExceptionHandler.INSTANCE.handle(
-                SCMExceptionFactory.createUnregistered("Transport and Logistics Management", "createShipment failed: " + ex.getMessage())
-            );
+            handleUnregistered("createShipment failed: " + ex.getMessage());
             return null;
         }
     }
@@ -69,109 +59,43 @@ public class TransportService implements ITransportService {
     }
 
     @Override
-    public Shipment getShipment(String shipmentId) {
-        return repository.getShipment(shipmentId);
-    }
+    public Shipment getShipment(String shipmentId) { return repository.getShipment(shipmentId); }
 
     @Override
-    public List<Shipment> getAllShipments() {
-        return repository.getAllShipments();
-    }
-
-    // New implementations
-    @Override
-    public FreightAudit auditFreight(String auditId, String shipmentId, double invoicedAmount, double contractAmount) {
-        String flag = (invoicedAmount > contractAmount) ? "OVERCHARGE" : (invoicedAmount < contractAmount) ? "UNDERCHARGE" : "NONE";
-        return new FreightAudit(auditId, shipmentId, invoicedAmount, contractAmount, flag);
-    }
+    public List<Shipment> getAllShipments() { return repository.getAllShipments(); }
 
     @Override
-    public ConstraintPlanner planConstraints(String planId, String shipmentId, double weightLimit, double heightLimit, int shiftHours, String window) {
-        return new ConstraintPlanner(planId, shipmentId, weightLimit, heightLimit, shiftHours, window);
-    }
+    public FreightAudit auditFreight(String auditId, String shipmentId, double invoicedAmount, double contractAmount) { return featureFactory.auditFreight(auditId, shipmentId, invoicedAmount, contractAmount); }
 
     @Override
-    public Territory manageTerritory(String territoryId, String zoneName, String area, int drivers) {
-        return new Territory(territoryId, zoneName, area, drivers);
-    }
+    public ConstraintPlanner planConstraints(String planId, String shipmentId, double weightLimit, double heightLimit, int shiftHours, String window) { return featureFactory.planConstraints(planId, shipmentId, weightLimit, heightLimit, shiftHours, window); }
 
     @Override
-    public OrderOrchestrator orchestrateOrder(String orderId, String salesOrderId, boolean isThirdParty, String supplierId) {
-        String poNumber = isThirdParty ? "PO-" + orderId : null;
-        return new OrderOrchestrator(orderId, salesOrderId, isThirdParty, supplierId, poNumber);
-    }
+    public Territory manageTerritory(String territoryId, String zoneName, String area, int drivers) { return featureFactory.manageTerritory(territoryId, zoneName, area, drivers); }
 
     @Override
-    public SupplierPortal integrateSupplierPortal(String portalId, String supplierId, String orderDetails) {
-        return new SupplierPortal(portalId, supplierId, orderDetails, "ASN-" + portalId, "PackingSlip-" + portalId);
-    }
+    public OrderOrchestrator orchestrateOrder(String orderId, String salesOrderId, boolean isThirdParty, String supplierId) { return featureFactory.orchestrateOrder(orderId, salesOrderId, isThirdParty, supplierId); }
 
     @Override
-    public TrackingSync syncTracking(String syncId, String orderId, String trackingNumber) {
-        return new TrackingSync(syncId, orderId, trackingNumber, "Updated to customer");
-    }
+    public SupplierPortal integrateSupplierPortal(String portalId, String supplierId, String orderDetails) { return featureFactory.integrateSupplierPortal(portalId, supplierId, orderDetails); }
 
     @Override
-    public ReverseLogistics handleReverseLogistics(String returnId, String orderId, String supplierId, double refund) {
-        return new ReverseLogistics(returnId, orderId, supplierId, refund, "PENDING");
-    }
+    public TrackingSync syncTracking(String syncId, String orderId, String trackingNumber) { return featureFactory.syncTracking(syncId, orderId, trackingNumber); }
 
-    // API-specific methods
-    public List<Shipment> getAllShipments(String status, int page, int size) {
-        List<Shipment> all = repository.getAllShipments();
-        if (status != null) {
-            all = all.stream().filter(s -> status.equals(s.getStatus())).collect(Collectors.toList());
-        }
-        int start = (page - 1) * size;
-        int end = Math.min(start + size, all.size());
-        return all.subList(start, end);
-    }
+    @Override
+    public ReverseLogistics handleReverseLogistics(String returnId, String orderId, String supplierId, double refund) { return featureFactory.handleReverseLogistics(returnId, orderId, supplierId, refund); }
 
-    public List<Carrier> getAllCarriers(String mode) {
-        return repository.getAllCarriers(mode);
-    }
+    public List<Shipment> getAllShipments(String status, int page, int size) { return queryOperations.getAllShipments(status, page, size); }
+    public List<Carrier> getAllCarriers(String mode) { return queryOperations.getAllCarriers(mode); }
+    public Carrier createCarrier(Carrier carrier) { return queryOperations.createCarrier(carrier); }
+    public Map<String, Object> optimizeRoute(String origin, String destination, String constraints) { return queryOperations.optimizeRoute(origin, destination, constraints); }
+    public List<Territory> getAllTerritories() { return queryOperations.getAllTerritories(); }
+    public String reportException(SCMException exception) { return queryOperations.reportException(exception); }
+    public Map<String, Object> getTrackingData(String shipmentId) { return queryOperations.getTrackingData(shipmentId); }
 
-    public Carrier createCarrier(Carrier carrier) {
-        repository.addCarrier(carrier);
-        return carrier;
-    }
-
-    public Map<String, Object> optimizeRoute(String origin, String destination, String constraints) {
-        if (origin == null || destination == null || origin.isBlank() || destination.isBlank()) {
-            exceptions.onNoViableRouteFound("UNKNOWN", "UNKNOWN");
-            return Collections.emptyMap();
-        }
-        if (constraints != null && constraints.toLowerCase(Locale.ROOT).contains("timeout")) {
-            exceptions.onCarrierApiTimeout("CARRIER_OPTIMIZER_API", 3000);
-            return Collections.emptyMap();
-        }
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("route", Arrays.asList(origin, "Intermediate Point", destination));
-        result.put("estimatedTime", "4 hours");
-        result.put("cost", 120.0);
-        return result;
-    }
-
-    public List<Territory> getAllTerritories() {
-        return repository.getAllTerritories();
-    }
-
-    public String reportException(SCMException exception) {
-        SCMExceptionHandler.INSTANCE.handle(exception);
-        return "Exception ID: " + exception.getExceptionId();
-    }
-
-    public Map<String, Object> getTrackingData(String shipmentId) {
-        if (shipmentId == null || shipmentId.isBlank()) {
-            exceptions.onGpsSignalLost("UNKNOWN_VEHICLE");
-            return Collections.emptyMap();
-        }
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("currentLocation", "En route to destination");
-        data.put("eta", "2026-04-20T14:00:00Z");
-        data.put("status", "On time");
-        return data;
+    private static void handleUnregistered(String message) {
+        SCMExceptionHandler.INSTANCE.handle(
+                SCMExceptionFactory.createUnregistered("Transport and Logistics Management", message)
+        );
     }
 }
