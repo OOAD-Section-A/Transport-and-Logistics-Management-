@@ -18,6 +18,25 @@ cd "c:\AIML\OOAD\Transport-and-Logistics-Management-\cmd"
 clean_and_run.bat
 ```
 
+## Build Integration JAR (Windows)
+Create a reusable JAR for partner teams:
+
+```batch
+cd "c:\AIML\OOAD\Transport-and-Logistics-Management-\cmd"
+build_integration_jar.bat
+```
+
+Generated outputs:
+- `libs\transport-and-logistics-management.jar` (primary artifact to share)
+- `dist\transport-and-logistics-management.jar` (mirror copy)
+
+Example usage by another subsystem:
+
+```batch
+javac -cp "lib\transport-and-logistics-management.jar" MyIntegration.java
+java -cp "lib\transport-and-logistics-management.jar;." MyIntegrationMain
+```
+
 ## Manual Build and Run
 ```batch
 cd "c:\AIML\OOAD\Transport-and-Logistics-Management-"
