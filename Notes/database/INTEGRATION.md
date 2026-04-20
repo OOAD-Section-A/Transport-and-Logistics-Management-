@@ -1,127 +1,54 @@
-# Database Module JAR Integration
+# Database Module Integration (Transport & Logistics)
 
-## Purpose
+This note keeps Transport and Logistics aligned with the latest `database_module` contract.
 
-The database module is packaged as a JAR so other Java subsystems can reuse the
-same database access code instead of writing SQL connection logic again.
+## Source of truth
 
-The main entry point is:
+- Primary reference: `c:\AIML\OOAD\database_module\INTEGRATION.md`
+- Integration artifact consumed by this subsystem:
+  - `libs\database-module-1.0.0-SNAPSHOT-standalone.jar`
 
-```java
-com.jackfruit.scm.database.facade.SupplyChainDatabaseFacade
+## Current integration contract
+
+1. Use `database-module-1.0.0-SNAPSHOT-standalone.jar` on classpath.
+2. Keep `scm-exception-handler-v3.jar` and `scm-exception-foundation.jar` on classpath when DB-backed exception logging is enabled.
+3. Keep `libs\database.properties` on classpath for current handler runtime and include:
+  - `db.url`
+  - `db.user`
+  - `db.password`
+4. Keep `db.username` in the same file for compatibility with database-module config readers.
+5. Environment variables (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`) can still be used by database-module readers but do not replace handler's `db.user` expectation.
+6. Do not require a local external `schema.sql` copy at runtime; canonical schema is embedded in the database module JAR and bootstrapped by the module.
+
+## Classpath examples (Windows)
+
+```bat
+javac -cp "src;libs;libs\scm-exception-handler-v3.jar;libs\scm-exception-foundation.jar;libs\database-module-1.0.0-SNAPSHOT-standalone.jar" -d bin @sources.list
+java -cp "bin;libs;libs\scm-exception-handler-v3.jar;libs\scm-exception-foundation.jar;libs\database-module-1.0.0-SNAPSHOT-standalone.jar" transport.TransportApplication
 ```
 
-Subsystems can either call the facade directly or use the subsystem-specific
-adapter classes in:
+## Existing-database migration
 
-```java
-com.jackfruit.scm.database.adapter
-```
-
-## JAR Location
-
-After building the project, the integration JAR is created at:
+For existing local `OOAD` schemas created from older DB module versions, run migration from the database module repository:
 
 ```text
-dist/database-module-1.0.0-SNAPSHOT-standalone.jar
+c:\AIML\OOAD\database_module\src\main\resources\sql\migration-to-canonical-schema.sql
 ```
-
-This standalone JAR includes the database module and its required runtime
-dependencies, so it is the correct file to share with non-Maven subsystems.
-
-Build it with:
-
-```bash
-mvn clean package
-```
-
-To install it into the local Maven repository:
-
-```bash
-mvn install
-```
-
-## Maven Integration
-
-If another subsystem is a Maven project, add this dependency to its `pom.xml`:
-
-```xml
-<dependency>
-    <groupId>com.jackfruit.scm</groupId>
-    <artifactId>database-module</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
-</dependency>
-```
-
-This is the recommended method because Maven also brings required dependencies
-like MySQL Connector/J.
-
-## Manual JAR Integration
-
-If the subsystem is not using Maven:
-
-1. Add `dist/database-module-1.0.0-SNAPSHOT-standalone.jar` to the subsystem classpath.
-2. Make sure `database.properties` is available on the runtime classpath.
-3. Import and call the required adapter class.
-
-Example compile/run commands:
-
-```bash
-javac -cp "lib/database-module-1.0.0-SNAPSHOT-standalone.jar" MySubsystem.java
-java -cp "lib/database-module-1.0.0-SNAPSHOT-standalone.jar;." MySubsystem
-```
-
-On Windows, use `;` in the classpath. On Linux/macOS, use `:`.
-
-## Using Adapters
-
-Yes, other subsystems can integrate through adapters. The JAR makes the adapter
-classes available, and each adapter gives a subsystem-friendly API.
 
 Example:
 
-```java
-import com.jackfruit.scm.database.adapter.InventoryAdapter;
-import com.jackfruit.scm.database.facade.SupplyChainDatabaseFacade;
-
-public class InventorySubsystem {
-    public static void main(String[] args) {
-        try (SupplyChainDatabaseFacade facade = new SupplyChainDatabaseFacade()) {
-            InventoryAdapter inventoryAdapter = new InventoryAdapter(facade);
-
-            inventoryAdapter.listProducts()
-                    .forEach(product -> System.out.println(product.productName()));
-        }
-    }
-}
+```bash
+mysql -u <user> -p OOAD < c:\AIML\OOAD\database_module\src\main\resources\sql\migration-to-canonical-schema.sql
 ```
 
-Other available adapters include:
+## Quick validation from this subsystem
 
-- `PricingAdapter`
-- `OrderAdapter`
-- `InventoryAdapter`
-- `WarehouseManagementAdapter`
-- `LogisticsAdapter`
-- `ReportingAdapter`
-- `BarcodeTrackingAdapter`
-- `ExceptionHandlingAdapter`
+Run:
 
-## Direct Facade Usage
+- `transport.ExceptionDbIntegrationSmokeTest`
 
-Adapters are useful, but not mandatory. A subsystem can also use the facade
-directly:
+Expected first integration signal:
 
-```java
-try (SupplyChainDatabaseFacade db = new SupplyChainDatabaseFacade()) {
-    db.inventory().listProducts();
-    db.pricing().listPrices();
-    db.orders().listOrders();
-}
-```
+- `DB module check: facade loaded successfully`
 
-## Important Note
-
-The JAR does not automatically connect subsystems by itself. It provides shared
-Java classes. The actual integration happens when each subsystem imports the JAR
-and calls the adapter or facade methods.
+If this message appears, transport-to-database module linkage is active.

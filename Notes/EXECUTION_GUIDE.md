@@ -9,8 +9,11 @@ This project now uses the shared SCM exception modules directly, aligned with th
   - `libs\scm-exception-handler-v3.jar`
   - `libs\scm-exception-foundation.jar`
   - Required for DB-backed logging: `libs\database-module-1.0.0-SNAPSHOT-standalone.jar`
-  - Required config: `libs\database.properties`
-  - Schema reference: `Notes\database\schema.sql`
+  - Required config file: `libs\database.properties`
+    - Must include `db.url`, `db.user`, `db.password`
+    - Keep `db.username` too for compatibility with database-module config readers
+  - Environment variables (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`) may be used by database-module config readers, but do not replace handler requirement for `db.user`
+  - No external schema file is required at runtime; canonical schema is embedded in the database module JAR
 
 ## Quick Run (Windows)
 ```batch
@@ -60,7 +63,16 @@ If the viewer module is available:
 java -cp "libs;libs\scm-exception-handler-v3.jar;libs\scm-exception-viewer-gui.jar;libs\database-module-1.0.0-SNAPSHOT-standalone.jar" com.scm.gui.ExceptionViewerGUI
 ```
 
+## PowerShell-safe smoke test run
+
+```powershell
+& java '-Djava.awt.headless=true' '-cp' 'bin;libs;libs\scm-exception-handler-v3.jar;libs\scm-exception-foundation.jar;libs\database-module-1.0.0-SNAPSHOT-standalone.jar' 'transport.ExceptionDbIntegrationSmokeTest'
+```
+
 ## Troubleshooting
 - If `package com.scm... does not exist`, verify both SCM module paths.
-- Ensure `libs\database.properties` points to a reachable MySQL instance and schema is applied.
+- Ensure `libs\database.properties` contains `db.url`, `db.user`, and `db.password`.
+- Keep `db.username` in the same file for compatibility with database-module config readers.
+- Ensure MySQL is reachable.
+- If DB-backed logging is enabled, ensure both `libs\database-module-1.0.0-SNAPSHOT-standalone.jar` and `libs\scm-exception-handler-v3.jar` are present on classpath.
 - If runtime fails, re-run `cmd\clean_and_run.bat` after deleting `bin`.

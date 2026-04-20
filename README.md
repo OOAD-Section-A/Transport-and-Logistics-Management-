@@ -53,7 +53,13 @@ Repository storage is currently in-memory (`HashMap`), so data is process-local 
 	- `scm-exception-handler-v3.jar` (or exploded folder with same name)
 	- `scm-exception-foundation.jar` (or exploded folder with same name)
 	- Optional for DB-backed exception logging: `database-module-1.0.0-SNAPSHOT-standalone.jar`
-	- `database.properties` when DB-backed logging is enabled
+	- For current `scm-exception-handler-v3.jar` runtime, keep `libs\database.properties` with:
+		- `db.url=...`
+		- `db.user=...`
+		- `db.password=...`
+	- Keep `db.username=...` in the same file for compatibility with database-module config readers
+	- Environment variables (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`) may still be used by database-module components, but do not replace the handler's `db.user` expectation
+	- No external `schema.sql` copy is required; canonical schema is embedded in the database module JAR
 
 ## 4. Build and run the subsystem
 
@@ -174,6 +180,12 @@ java -Djava.awt.headless=true -cp "bin;libs;libs\scm-exception-handler-v3.jar;li
 del /F /Q sources.list
 ```
 
+PowerShell-safe invocation for the same run:
+
+```powershell
+& java '-Djava.awt.headless=true' '-cp' 'bin;libs;libs\scm-exception-handler-v3.jar;libs\scm-exception-foundation.jar;libs\database-module-1.0.0-SNAPSHOT-standalone.jar' 'transport.ExceptionDbIntegrationSmokeTest'
+```
+
 ### 7.3 Unit tests
 
 Test classes are under:
@@ -211,7 +223,9 @@ If the feature has validation rules, keep them in the service layer. If it needs
 - `package com.scm... does not exist`
 	- Ensure SCM exception modules are present in `libs` and included in classpath.
 - DB-related exception logging not working
-	- Verify `database-module-1.0.0-SNAPSHOT-standalone.jar` and `database.properties`.
+	- Verify `database-module-1.0.0-SNAPSHOT-standalone.jar` and `scm-exception-handler-v3.jar` are on classpath.
+	- Verify `libs\database.properties` exists and includes `db.url`, `db.user`, and `db.password`.
+	- Keep `db.username` as well for compatibility with database-module config readers.
 - Shipment creation returns `null`
 	- Check pincode format, weight limit, and supplier id validity.
 
