@@ -8,14 +8,32 @@ set "SRC=%ROOT%\src"
 set "BIN=%ROOT%\bin"
 set "LIB_DIR=%ROOT%\libs"
 set "DIST=%ROOT%\dist"
-set "HANDLER_JAR=%ROOT%\libs\scm-exception-handler-v3.jar"
-set "FOUNDATION_JAR=%ROOT%\libs\scm-exception-foundation.jar"
+set "EXCEPTION_DIR=%ROOT%\exception-handling"
+set "HANDLER_JAR=%EXCEPTION_DIR%\scm-exception-handler-v3.jar"
+set "VIEWER_JAR=%EXCEPTION_DIR%\scm-exception-viewer-gui.jar"
+set "JNA_JAR=%EXCEPTION_DIR%\jna-5.18.1.jar"
+set "JNA_PLATFORM_JAR=%EXCEPTION_DIR%\jna-platform-5.18.1.jar"
 set "DB_JAR=%ROOT%\libs\database-module-1.0.0-SNAPSHOT-standalone.jar"
 set "SOURCES_FILE=%ROOT%\sources.list"
 set "MANIFEST_FILE=%ROOT%\manifest.transport.tmp"
 set "OUTPUT_JAR=%LIB_DIR%\transport-and-logistics-management.jar"
 set "DIST_JAR=%DIST%\transport-and-logistics-management.jar"
-set "LIB_CP=%SRC%;%LIB_DIR%;%HANDLER_JAR%;%FOUNDATION_JAR%"
+set "LIB_CP=%SRC%;%LIB_DIR%;%HANDLER_JAR%;%JNA_JAR%;%JNA_PLATFORM_JAR%"
+
+if not exist "%HANDLER_JAR%" (
+    echo MISSING DEPENDENCY: %HANDLER_JAR%
+    exit /b 1
+)
+
+if not exist "%JNA_JAR%" (
+    echo MISSING DEPENDENCY: %JNA_JAR%
+    exit /b 1
+)
+
+if not exist "%JNA_PLATFORM_JAR%" (
+    echo MISSING DEPENDENCY: %JNA_PLATFORM_JAR%
+    exit /b 1
+)
 
 if exist "%DB_JAR%" (
     set "LIB_CP=%LIB_CP%;%DB_JAR%"
@@ -71,3 +89,9 @@ echo Output (for partner teams):
 echo   %OUTPUT_JAR%
 echo Mirror copy:
 echo   %DIST_JAR%
+echo Runtime exception dependencies:
+echo   %HANDLER_JAR%
+echo   %JNA_JAR%
+echo   %JNA_PLATFORM_JAR%
+if exist "%VIEWER_JAR%" echo Optional GUI dependency: %VIEWER_JAR%
+if exist "%DB_JAR%" echo Optional DB integration dependency: %DB_JAR%

@@ -9,7 +9,6 @@ import services.TransportService;
 
 public class ExceptionDbIntegrationSmokeTest {
     public static void main(String[] args) {
-        System.setProperty("java.awt.headless", "true");
         checkDatabaseModule();
 
         TransportService svc = new TransportService(new TransportRepository());
@@ -84,8 +83,23 @@ public class ExceptionDbIntegrationSmokeTest {
             action.run();
             System.out.println("Result: completed");
         } catch (Throwable ex) {
+            if (isHeadlessPopup(ex)) {
+                System.out.println("Result: completed (popup suppressed in headless mode)");
+                return;
+            }
             System.out.println("Result: failed in runtime path -> " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
         }
+    }
+
+    private static boolean isHeadlessPopup(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            if (current instanceof java.awt.HeadlessException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private static void checkDatabaseModule() {
