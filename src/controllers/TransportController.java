@@ -1,5 +1,7 @@
 package controllers;
 
+import java.util.List;
+
 import behavioral.chain.Handler;
 import behavioral.chain.LoggingHandler;
 import behavioral.chain.ValidationHandler;
@@ -97,4 +99,12 @@ public class TransportController {
     }
 
     public String getSystemInfo() { return facade.getFacadeInfo(); }
+    public void handleRiderAssignment(String orderId, String zone) {
+    List<Rider> availableRiders = transportFacade.getTransportService().getAvailableRiders(zone);
+    if (!availableRiders.isEmpty()) {
+        Rider rider = availableRiders.get(0);
+        // Call delivery system's assignRiderToOrder
+        deliverySystem.assignRiderToOrder(orderId, rider.getRiderId());
+    }
+}
 }

@@ -7,8 +7,11 @@ import com.scm.subsystems.TransportLogisticsSubsystem;
 import entities.*;
 import interfaces.ITransportService;
 import repositories.TransportRepository;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class TransportService implements ITransportService {
     private static final double MAX_SHIPMENT_WEIGHT = 100.0;
@@ -84,6 +87,52 @@ public class TransportService implements ITransportService {
 
     @Override
     public ReverseLogistics handleReverseLogistics(String returnId, String orderId, String supplierId, double refund) { return featureFactory.handleReverseLogistics(returnId, orderId, supplierId, refund); }
+    @Override
+public Rider getRiderDetails(String riderId) {
+    // Query repository or external system for rider details
+    return transportRepository.getRider(riderId);
+}
+
+@Override
+public List<Rider> getAvailableRiders(String zone) {
+    // Filter riders by zone and availability
+    return transportRepository.getAllRiders().stream()
+        .filter(r -> r.getZone().equals(zone) && r.isAvailable())
+        .collect(Collectors.toList());
+}
+
+@Override
+public RoutePlan calculateOptimalRoute(String pickup, String dropoff, List<String> waypoints) {
+    // Implement route calculation logic (e.g., using a routing algorithm or external API)
+    // For simplicity, mock a plan
+    RoutePlan plan = new RoutePlan(pickup, dropoff, waypoints, 15.5, 45.0);
+    return plan;
+}
+
+@Override
+public void reportVehicleHealth(String riderId, VehicleHealthReport report) {
+    // Validate and store/report health data
+    if (report.getFuelLevel() < 0.1) {
+        throw new IllegalArgumentException("Fuel level too low");
+    }
+    transportRepository.saveVehicleHealthReport(riderId, report);
+}
+@Override
+public List<GeofenceZone> getLogisticsHubZones() {
+    // Return predefined hub zones (e.g., warehouses)
+    List<GeofenceZone> zones = new ArrayList<>();
+    zones.add(new GeofenceZone("HUB1", "Main Warehouse", 12.9716, 77.5946, 1000.0));
+    return zones;
+}
+
+@Override
+public void notifyRiderAvailable(String riderId) {
+    Rider_info rider = transportRepository.getRider(riderId);
+    if (rider != null) {
+        rider.setAvailable(true);
+        transportRepository.saveRider(rider);
+    }
+}
 
     public List<Shipment> getAllShipments(String status, int page, int size) { return queryOperations.getAllShipments(status, page, size); }
     public List<Carrier> getAllCarriers(String mode) { return queryOperations.getAllCarriers(mode); }

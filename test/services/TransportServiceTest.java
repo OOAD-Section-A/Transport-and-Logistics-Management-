@@ -75,4 +75,16 @@ public class TransportServiceTest {
         assertEquals(50.0, logistics.getRefundAmount());
         assertEquals("PENDING", logistics.getReconciliationStatus());
     }
+    @Test
+    public void testGetRiderDetails() {
+        Rider_info rider = new Rider_info();
+        rider.setRiderId("R001");
+        when(transportRepository.getRider("R001")).thenReturn(rider);
+        assertEquals("R001", transportService.getRiderDetails("R001").getRiderId());
+}
+
+    @Test
+    public void testGetAvailableRiders() {
+    // Mock and test filtering
+}
 }

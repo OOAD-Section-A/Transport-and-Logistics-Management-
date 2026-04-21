@@ -88,4 +88,13 @@ public class TransportRepository {
     public List<Territory> getAllTerritories() {
         return new ArrayList<>(territoryStore.values());
     }
+    private Map<String, Rider> riders = new HashMap<>();
+    private Map<String, VehicleHealthReport> healthReports = new HashMap<>();
+
+    public Rider getRider(String riderId) { return riders.get(riderId); }
+    public List<Rider> getAllRiders() { return new ArrayList<>(riders.values());}
+    public void saveVehicleHealthReport(String riderId, VehicleHealthReport report) { healthReports.put(riderId, report); }
+    private List<GeofenceZone> hubZones = new ArrayList<>(); // Pre-populate or load from data
+    public List<GeofenceZone> getLogisticsHubZones() { return hubZones; }
+
 }
