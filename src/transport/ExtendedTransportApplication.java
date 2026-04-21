@@ -1,6 +1,7 @@
 package transport;
 
 import adapters.*;
+import com.ramennoodles.delivery.facade.DeliveryMonitoringFacadeDB;
 import entities.AlertManager.*;
 import entities.AlertManager.AlertLevel;
 
@@ -22,6 +23,12 @@ public class ExtendedTransportApplication {
         RouteOptimizerAdapter routeAdapter = new RouteOptimizerAdapter();
         LiveTrackingAdapter trackingAdapter = new LiveTrackingAdapter();
         AlertManagerAdapter alertAdapter = new AlertManagerAdapter();
+        
+        // Create the facade
+        DeliveryMonitoringFacadeDB deliveryFacade = new DeliveryMonitoringFacadeDB();
+        
+        // Wire your adapter to the real system
+        LiveTrackingAdapter liveTrackingAdapter = new LiveTrackingAdapter(deliveryFacade);
         
         // Run demonstrations
         demo1_RouteOptimization(routeAdapter);

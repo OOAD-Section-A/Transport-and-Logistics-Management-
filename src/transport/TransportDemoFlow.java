@@ -1,5 +1,6 @@
 package transport;
-
+import integration.rtm.RTMIntegration;
+import com.ramennoodles.delivery.facade.DeliveryMonitoringFacadeDB;
 import controllers.TransportController;
 import entities.Shipment;
 import views.TransportView;
@@ -36,8 +37,13 @@ final class TransportDemoFlow {
 
 
 	view.displaySection("STEP 11: WMS INTEGRATION (Polling Shipment Events)");
-        integration.wms.WMSIntegration wms = new integration.wms.WMSIntegration();
-        wms.pollAndProcess();
+    integration.wms.WMSIntegration wms = new integration.wms.WMSIntegration();
+    wms.pollAndProcess();
+
+  view.displaySection("STEP 12: REAL-TIME TRACKING (RTM INTEGRATION)");
+    DeliveryMonitoringFacadeDB facade = new DeliveryMonitoringFacadeDB();
+    RTMIntegration rtm = new RTMIntegration(facade);
+    rtm.pollAndProcess();
 	
 
         view.displaySection("FINAL SYSTEM STATUS");
