@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(java -cp \"bin;libs\\\\*\" integration.DeliveryMonitoringIntegrationTest)",
+      "Bash(javac -cp \"src;libs\\\\*\" -d bin src/integration/DeliveryMonitoringIntegrationTest.java)",
+      "Bash(javac -cp \"bin;libs\\\\*\" -d bin src/integration/DeliveryMonitoringIntegrationTest.java)",
+      "Bash(jar tf *)",
+      "Bash(grep -v \"/$\")",
+      "Bash(javap -cp \"C:\\\\Users\\\\advay\\\\main\\\\Documents\\\\dev\\\\Transport-and-Logistics-Management-\\\\realtime-delivery-monitoring\\\\lib\\\\delivery-monitoring-1.0.0.jar\" -public com.ramennoodles.delivery.facade.DeliveryMonitoringFacadeDB)",
+      "Bash(rm -rf bin)",
+      "Bash(mkdir bin *)",
+      "Bash(dir /s /b src\\\\*.java)",
+      "Bash(javac -cp \"src;libs\\\\*\" -d bin @sources.list)",
+      "Bash(find src *)",
+      "Bash(javac -cp \"src;libs/*\" -d bin @sources.list)",
+      "Bash(java -cp \"bin;libs/*\" integration.DeliveryMonitoringIntegrationTest)",
+      "Bash(grep -E \"\\\\.java$\")",
+      "Bash(cmd /c \"cmd\\\\test_integration.bat\")",
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Bash(jar xf *)",
+      "Bash(javap -c -p com/ramennoodles/delivery/service/DatabaseIntegrationService.class)",
+      "Bash(javap -c -p com/jackfruit/scm/database/config/DatabaseConfig.class)",
+      "Bash(mysql -u root -p2005 -e \"SELECT 1;\")",
+      "Bash(mysql -u root --password=\"\" -e \"SELECT 1;\")",
+      "Bash(mysql -u root -p\"2005\" --host=127.0.0.1 -e \"SELECT 1;\")",
+      "Bash(mysql -u root -p2403 -e \"SELECT 'connected' AS status;\")",
+      "Bash(mysql -u root -p2403 -e \"CREATE DATABASE IF NOT EXISTS OOAD; SHOW DATABASES LIKE 'OOAD';\")"
+    ]
+  }
+}

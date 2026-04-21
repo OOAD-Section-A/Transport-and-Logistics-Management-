@@ -2,6 +2,7 @@ package facade;
 
 import java.util.List;
 
+import adapters.DatabasePersistenceAdapter;
 import adapters.ExternalTransportAdapter;
 import entities.Carrier;
 import entities.Shipment;
@@ -13,13 +14,38 @@ import interfaces.ITransportService;
 import proxy.TransportServiceProxy;
 import repositories.TransportRepository;
 import services.TransportService;
+import com.ramennoodles.delivery.facade.DeliveryMonitoringFacadeDB;
+import com.ramennoodles.delivery.observer.DeliveryEventType;
+import com.ramennoodles.delivery.observer.DeliveryEventListener;
 
 public class TransportFacade {
+    private DeliveryMonitoringFacadeDB deliverySystem = new DeliveryMonitoringFacadeDB();
+
+    public void initializeIntegration() {
+        // Subscribe to events
+        deliverySystem.subscribeToEvents(DeliveryEventType.LOCATION_UPDATED, 
+            (eventType, data) -> {
+                String riderId = (String) data.get("riderId");
+                Double latitude = (Double) data.get("latitude");
+                Double longitude = (Double) data.get("longitude");
+                // Update rider location in your repository
+                updateRiderLocation(riderId, latitude, longitude);
+            });
+    }
+
+    private void updateRiderLocation(String riderId, double latitude, double longitude) {
+        System.out.println("[TMS-FACADE] Live location update received for rider " + riderId + " at " + latitude + "," + longitude);
+        if (dbAdapter != null) {
+            dbAdapter.persistTrackingEvent("SYSTEM-DELIVERY", riderId, latitude, longitude, "IN_TRANSIT");
+        }
+    }
+
     private final ITransportService transportService;
     private final TransportRepository repository;
     private final IExternalTransportSystem externalAdapter;
     private final CarrierFlyweightFactory carrierFactory;
     private final PrototypeRegistry prototypeRegistry;
+    private final DatabasePersistenceAdapter dbAdapter;
 
     public TransportFacade() {
         repository = new TransportRepository();
@@ -28,11 +54,18 @@ public class TransportFacade {
         externalAdapter = new ExternalTransportAdapter();
         carrierFactory = CarrierFlyweightFactory.getInstance();
         prototypeRegistry = PrototypeRegistry.getInstance();
+        dbAdapter = new DatabasePersistenceAdapter();
     }
 
     public ITransportService getTransportService() { return transportService; }
-    public void createShipment(Shipment shipment) { transportService.createShipment(shipment); }
-    public void updateShipmentStatus(String shipmentId, String status) { transportService.updateShipmentStatus(shipmentId, status); }
+    public void createShipment(Shipment shipment) { 
+        transportService.createShipment(shipment); 
+        dbAdapter.persistShipment(shipment);
+    }
+    public void updateShipmentStatus(String shipmentId, String status) { 
+        transportService.updateShipmentStatus(shipmentId, status); 
+        dbAdapter.updateShipmentStatus(shipmentId, status);
+    }
     public Shipment getShipment(String shipmentId) { return transportService.getShipment(shipmentId); }
     public List<Shipment> getAllShipments() { return transportService.getAllShipments(); }
 
@@ -62,6 +95,7 @@ public class TransportFacade {
     }
 
     public TransportRepository getRepository() { return repository; }
+    public DatabasePersistenceAdapter getDbAdapter() { return dbAdapter; }
 
     public String getFacadeInfo() {
         return "TransportFacade - Simplified API for Transport subsystem\n" +

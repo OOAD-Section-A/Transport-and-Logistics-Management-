@@ -3,6 +3,7 @@ package repositories;
 import entities.Shipment;
 import entities.Carrier;
 import entities.Territory;
+import adapters.DatabasePersistenceAdapter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,12 +20,14 @@ public class TransportRepository {
     private Map<String, Shipment> shipmentStore = new HashMap<>();
     private Map<String, Carrier> carrierStore = new HashMap<>();
     private Map<String, Territory> territoryStore = new HashMap<>();
+    private DatabasePersistenceAdapter dbAdapter = new DatabasePersistenceAdapter();
 
     /**
      * Store a shipment in repository
      */
     public void addShipment(Shipment shipment) {
         shipmentStore.put(shipment.getShipmentId(), shipment);
+        dbAdapter.persistShipment(shipment);
     }
 
     /**
@@ -47,6 +50,7 @@ public class TransportRepository {
     public void updateShipment(String shipmentId, Shipment shipment) {
         if (shipmentStore.containsKey(shipmentId)) {
             shipmentStore.put(shipmentId, shipment);
+            dbAdapter.updateShipmentStatus(shipmentId, shipment.getStatus());
         }
     }
 
@@ -88,4 +92,5 @@ public class TransportRepository {
     public List<Territory> getAllTerritories() {
         return new ArrayList<>(territoryStore.values());
     }
+// Cleaned up invalid entities
 }

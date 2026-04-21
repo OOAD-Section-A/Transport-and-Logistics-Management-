@@ -2,7 +2,9 @@
 REM Clean and Run Transport Management System
 REM This script ensures clean execution with no interference from old .class files
 
-set "ROOT=%~dp0.."
+set "SCRIPT_DIR=%~dp0"
+cd /d "%SCRIPT_DIR%\.."
+set "ROOT=%cd%"
 set "SRC=%ROOT%\src"
 set "TEST=%ROOT%\test"
 set "BIN=%ROOT%\bin"
@@ -13,9 +15,10 @@ set "VIEWER_JAR=%EXCEPTION_DIR%\scm-exception-viewer-gui.jar"
 set "JNA_JAR=%EXCEPTION_DIR%\jna-5.18.1.jar"
 set "JNA_PLATFORM_JAR=%EXCEPTION_DIR%\jna-platform-5.18.1.jar"
 set "DB_JAR=%ROOT%\libs\database-module-1.0.0-SNAPSHOT-standalone.jar"
+set "DELIVERY_JAR=%ROOT%\libs\delivery-monitoring-1.0.0.jar"
 set "SOURCES_FILE=%ROOT%\sources.list"
-set "LIB_CP=%SRC%;%LIB_DIR%;%HANDLER_JAR%;%JNA_JAR%;%JNA_PLATFORM_JAR%"
-set "RUN_CP=%BIN%;%LIB_DIR%;%HANDLER_JAR%;%JNA_JAR%;%JNA_PLATFORM_JAR%"
+set "LIB_CP=%SRC%;%LIB_DIR%;%HANDLER_JAR%;%JNA_JAR%;%JNA_PLATFORM_JAR%;%DELIVERY_JAR%"
+set "RUN_CP=%BIN%;%LIB_DIR%;%HANDLER_JAR%;%JNA_JAR%;%JNA_PLATFORM_JAR%;%DELIVERY_JAR%"
 
 if not exist "%HANDLER_JAR%" (
     echo MISSING DEPENDENCY: %HANDLER_JAR%
@@ -54,6 +57,7 @@ echo ========================================
 echo COMPILING SOURCE CODE...
 echo ========================================
 for /r "%SRC%" %%f in (*.java) do @echo %%f>>"%SOURCES_FILE%"
+
 javac -cp "%LIB_CP%" -d "%BIN%" @"%SOURCES_FILE%"
 if %errorlevel% neq 0 (
     echo COMPILATION FAILED!

@@ -9,6 +9,7 @@ import interfaces.ITransportService;
 import repositories.TransportRepository;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class TransportService implements ITransportService {
     private static final double MAX_SHIPMENT_WEIGHT = 100.0;
@@ -84,7 +85,6 @@ public class TransportService implements ITransportService {
 
     @Override
     public ReverseLogistics handleReverseLogistics(String returnId, String orderId, String supplierId, double refund) { return featureFactory.handleReverseLogistics(returnId, orderId, supplierId, refund); }
-
     public List<Shipment> getAllShipments(String status, int page, int size) { return queryOperations.getAllShipments(status, page, size); }
     public List<Carrier> getAllCarriers(String mode) { return queryOperations.getAllCarriers(mode); }
     public Carrier createCarrier(Carrier carrier) { return queryOperations.createCarrier(carrier); }

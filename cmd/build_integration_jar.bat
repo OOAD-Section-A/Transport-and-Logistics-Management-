@@ -14,11 +14,12 @@ set "VIEWER_JAR=%EXCEPTION_DIR%\scm-exception-viewer-gui.jar"
 set "JNA_JAR=%EXCEPTION_DIR%\jna-5.18.1.jar"
 set "JNA_PLATFORM_JAR=%EXCEPTION_DIR%\jna-platform-5.18.1.jar"
 set "DB_JAR=%ROOT%\libs\database-module-1.0.0-SNAPSHOT-standalone.jar"
+set "DELIVERY_JAR=%ROOT%\libs\delivery-monitoring-1.0.0.jar"
 set "SOURCES_FILE=%ROOT%\sources.list"
 set "MANIFEST_FILE=%ROOT%\manifest.transport.tmp"
 set "OUTPUT_JAR=%LIB_DIR%\transport-and-logistics-management.jar"
 set "DIST_JAR=%DIST%\transport-and-logistics-management.jar"
-set "LIB_CP=%SRC%;%LIB_DIR%;%HANDLER_JAR%;%JNA_JAR%;%JNA_PLATFORM_JAR%"
+set "LIB_CP=%SRC%;%LIB_DIR%;%HANDLER_JAR%;%JNA_JAR%;%JNA_PLATFORM_JAR%;%DELIVERY_JAR%"
 
 if not exist "%HANDLER_JAR%" (
     echo MISSING DEPENDENCY: %HANDLER_JAR%
