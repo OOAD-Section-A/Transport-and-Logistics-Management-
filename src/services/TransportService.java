@@ -7,6 +7,8 @@ import com.scm.subsystems.TransportLogisticsSubsystem;
 import entities.*;
 import interfaces.ITransportService;
 import repositories.TransportRepository;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -114,6 +116,22 @@ public void reportVehicleHealth(String riderId, VehicleHealthReport report) {
         throw new IllegalArgumentException("Fuel level too low");
     }
     transportRepository.saveVehicleHealthReport(riderId, report);
+}
+@Override
+public List<GeofenceZone> getLogisticsHubZones() {
+    // Return predefined hub zones (e.g., warehouses)
+    List<GeofenceZone> zones = new ArrayList<>();
+    zones.add(new GeofenceZone("HUB1", "Main Warehouse", 12.9716, 77.5946, 1000.0));
+    return zones;
+}
+
+@Override
+public void notifyRiderAvailable(String riderId) {
+    Rider_info rider = transportRepository.getRider(riderId);
+    if (rider != null) {
+        rider.setAvailable(true);
+        transportRepository.saveRider(rider);
+    }
 }
 
     public List<Shipment> getAllShipments(String status, int page, int size) { return queryOperations.getAllShipments(status, page, size); }

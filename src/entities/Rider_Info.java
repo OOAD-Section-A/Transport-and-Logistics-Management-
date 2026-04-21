@@ -1,4 +1,3 @@
-public // filepath: c:\Users\bhara\OneDrive\Desktop\OOAD Jackfruit\Transport-and-Logistics-Management-\src\entities\Rider.java
 package entities;
 
 public class Rider {

@@ -94,4 +94,7 @@ public class TransportRepository {
     public Rider getRider(String riderId) { return riders.get(riderId); }
     public List<Rider> getAllRiders() { return new ArrayList<>(riders.values());}
     public void saveVehicleHealthReport(String riderId, VehicleHealthReport report) { healthReports.put(riderId, report); }
+    private List<GeofenceZone> hubZones = new ArrayList<>(); // Pre-populate or load from data
+    public List<GeofenceZone> getLogisticsHubZones() { return hubZones; }
+
 }

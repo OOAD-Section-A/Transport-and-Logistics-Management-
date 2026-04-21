@@ -26,4 +26,6 @@ public interface ITransportService {
     List<Rider> getAvailableRiders(String zone);
     RoutePlan calculateOptimalRoute(String pickup, String dropoff, List<String> waypoints);
     void reportVehicleHealth(String riderId, VehicleHealthReport report);
+    List<GeofenceZone> getLogisticsHubZones();
+    void notifyRiderAvailable(String riderId);
 }
