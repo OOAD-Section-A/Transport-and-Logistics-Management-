@@ -34,6 +34,12 @@ final class TransportDemoFlow {
             view.displayShipment(retrievedShipment);
         }
 
+
+	view.displaySection("STEP 11: WMS INTEGRATION (Polling Shipment Events)");
+        integration.wms.WMSIntegration wms = new integration.wms.WMSIntegration();
+        wms.pollAndProcess();
+	
+
         view.displaySection("FINAL SYSTEM STATUS");
         view.displaySystemInfo(controller.getSystemInfo());
         printPatternSummary(view);
@@ -42,23 +48,23 @@ final class TransportDemoFlow {
     private static void printPatternSummary(TransportView view) {
         view.displaySection("DESIGN PATTERNS SUMMARY");
         System.out.println("""
-            ✓ CREATIONAL PATTERNS:
+            CREATIONAL PATTERNS:
               • Factory Pattern - Created Suppliers and Carriers
               • Builder Pattern - Built complex Shipment objects
               • Prototype Pattern - Cloned shipment templates
 
-            ✓ STRUCTURAL PATTERNS:
+            STRUCTURAL PATTERNS:
               • Adapter Pattern - Integrated external transport system
               • Facade Pattern - Simplified subsystem access
               • Proxy Pattern - Added logging to service calls
               • Flyweight Pattern - Reused Carrier objects to save memory
 
-            ✓ BEHAVIORAL PATTERNS:
+            BEHAVIORAL PATTERNS:
               • Command Pattern - Encapsulated create/update operations
               • Chain of Responsibility - Multi-step shipment validation
               • Iterator Pattern - Iterated through shipments safely
 
-            ✓ ARCHITECTURE:
+            ARCHITECTURE:
               • MVC - Controller -> Facade -> Service -> Repository
               • SOLID - SRP, OCP, LSP, ISP, DIP applied
               • GRASP - Information Expert, Creator, Controller applied

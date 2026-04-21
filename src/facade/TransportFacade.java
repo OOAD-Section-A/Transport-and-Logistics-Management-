@@ -12,6 +12,7 @@ import interfaces.IExternalTransportSystem;
 import interfaces.ITransportService;
 import proxy.TransportServiceProxy;
 import repositories.TransportRepository;
+import repositories.DatabaseTransportRepository;
 import services.TransportService;
 
 public class TransportFacade {
@@ -22,7 +23,7 @@ public class TransportFacade {
     private final PrototypeRegistry prototypeRegistry;
 
     public TransportFacade() {
-        repository = new TransportRepository();
+        repository = new DatabaseTransportRepository();
         TransportService realService = new TransportService(repository);
         transportService = new TransportServiceProxy(realService);
         externalAdapter = new ExternalTransportAdapter();

@@ -14,8 +14,10 @@ set "JNA_JAR=%EXCEPTION_DIR%\jna-5.18.1.jar"
 set "JNA_PLATFORM_JAR=%EXCEPTION_DIR%\jna-platform-5.18.1.jar"
 set "DB_JAR=%ROOT%\libs\database-module-1.0.0-SNAPSHOT-standalone.jar"
 set "SOURCES_FILE=%ROOT%\sources.list"
-set "LIB_CP=%SRC%;%LIB_DIR%;%HANDLER_JAR%;%JNA_JAR%;%JNA_PLATFORM_JAR%"
-set "RUN_CP=%BIN%;%LIB_DIR%;%HANDLER_JAR%;%JNA_JAR%;%JNA_PLATFORM_JAR%"
+set "WMS_SRC=C:\AIML\OOAD\SCM-Subsystem-2-WMS\src"
+set "WMS_BIN=C:\AIML\OOAD\SCM-Subsystem-2-WMS\bin"
+set "LIB_CP=%SRC%;%WMS_SRC%;%LIB_DIR%;%HANDLER_JAR%;%JNA_JAR%;%JNA_PLATFORM_JAR%"
+set "RUN_CP=%BIN%;%WMS_BIN%;%LIB_DIR%;%HANDLER_JAR%;%JNA_JAR%;%JNA_PLATFORM_JAR%"
 
 if not exist "%HANDLER_JAR%" (
     echo MISSING DEPENDENCY: %HANDLER_JAR%
@@ -42,6 +44,14 @@ if exist "%DB_JAR%" (
 )
 
 echo ========================================
+echo RESETTING DATABASE...
+echo ========================================
+mysql -u root -p1016 -e "DROP DATABASE IF EXISTS ooad;"
+mysql -u root -p1016 -e "CREATE DATABASE ooad;"
+mysql -u root -p1016 --force ooad < "%ROOT%\Notes\database\schema.sql"
+echo Database reset complete.
+
+echo ========================================
 echo CLEANING OLD COMPILED FILES...
 echo ========================================
 if exist "%BIN%" rmdir /S /Q "%BIN%"
@@ -49,6 +59,8 @@ if exist "%SOURCES_FILE%" del /F /Q "%SOURCES_FILE%"
 for /r "%SRC%" %%f in (*.class) do del /F /Q "%%f"
 for /r "%TEST%" %%f in (*.class) do del /F /Q "%%f"
 mkdir "%BIN%"
+mkdir "%BIN%"
+copy "%LIB_DIR%\database.properties" "%BIN%\database.properties"
 
 echo ========================================
 echo COMPILING SOURCE CODE...
@@ -64,7 +76,7 @@ if %errorlevel% neq 0 (
 echo ========================================
 echo RUNNING TRANSPORT APPLICATION...
 echo ========================================
-java -cp "%RUN_CP%" transport.TransportApplication
+java -Ddb.url=jdbc:mysql://localhost:3306/ooad?createDatabaseIfNotExist=true -Ddb.username=root -Ddb.password=1016 -Ddb.pool.size=5 -cp "%RUN_CP%" transport.TransportApplication
 if %errorlevel% neq 0 (
     echo EXECUTION FAILED!
     pause
