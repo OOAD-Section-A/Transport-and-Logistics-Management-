@@ -14,6 +14,27 @@ import proxy.TransportServiceProxy;
 import repositories.TransportRepository;
 import repositories.DatabaseTransportRepository;
 import services.TransportService;
+import com.ramennoodles.delivery.facade.DeliveryMonitoringFacade; // Assuming their JAR is added to libs
+import com.ramennoodles.delivery.enums.DeliveryEventType;
+import com.ramennoodles.delivery.observer.DeliveryEventListener;
+
+private DeliveryMonitoringFacade deliverySystem = new DeliveryMonitoringFacade();
+
+public void initializeIntegration() {
+    // Subscribe to events
+    deliverySystem.subscribeToEvents(DeliveryEventType.LOCATION_UPDATED, 
+        (eventType, data) -> {
+            String riderId = (String) data.get("riderId");
+            Double latitude = (Double) data.get("latitude");
+            Double longitude = (Double) data.get("longitude");
+            // Update rider location in your repository
+            updateRiderLocation(riderId, latitude, longitude);
+        });
+}
+
+private void updateRiderLocation(String riderId, double latitude, double longitude) {
+    // Implement location update logic
+}
 
 public class TransportFacade {
     private final ITransportService transportService;
